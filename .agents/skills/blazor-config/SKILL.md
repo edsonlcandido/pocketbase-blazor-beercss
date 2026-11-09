@@ -43,7 +43,7 @@ Em `apps/web/Web.csproj`:
 </Target>
 ```
 
-O `Landing.csproj` tem o equivalente com `WebAppUrl` (default `/app`).
+O `Landing.csproj` tem o equivalente com `WebAppUrl` (default `/app/`).
 
 **Override no publish:**
 
@@ -103,6 +103,19 @@ O `apps/web/wwwroot/index.html` resolve isso **antes** do Blazor subir:
 > ```
 
 A landing é servida na raiz — o `<base href="/">` dela funciona em dev e prod, sem script.
+
+### Consequência: navegação relativa
+
+Como o `<base href>` muda entre dev (`/`) e prod (`/app/`), **todo caminho interno do app tem que ser relativo**:
+
+```csharp
+Navigation.NavigateTo("bio");   // ✅ "/bio" em dev, "/app/bio" em prod
+Navigation.NavigateTo("/bio");  // ❌ "/bio" em dev, "/bio" em prod (fora do app)
+```
+
+O mesmo vale para `<a href="bio">` no markup. Detalhes em `.agents/skills/blazor-page/SKILL.md`.
+
+> A URL do PocketBase (`PocketBase:Url`) é **runtime** — o `appsettings.json` é lido pelo app já carregado, então dá pra trocar sem rebuildar. Já o `<base href>` é resolvido no boot: mudar o prefixo de deploy exige rebuild.
 
 ---
 

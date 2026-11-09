@@ -100,7 +100,7 @@ A configuração fica em `apps/<app>/wwwroot/appsettings.json` e é lida **em ru
 | Variável | App | Dev | Prod |
 |---|---|---|---|
 | `PocketBase:Url` | web | `http://localhost:8090` | `/` (mesma origem) |
-| `WebApp:Url` | landing | `http://localhost:5174` | `/app` |
+| `WebApp:Url` | landing | `http://localhost:5174` | `/app/` |
 
 O valor de produção é injetado no `dotnet publish`:
 
