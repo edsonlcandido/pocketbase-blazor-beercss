@@ -1,0 +1,36 @@
+<article class="card stat-card @Tone">
+    <div class="row middle-align no-space">
+        <div class="stat-icon">
+            <i>@Icon</i>
+        </div>
+        <div class="left-margin">
+            <p class="small-text muted no-margin">@Label</p>
+            <p class="h5 no-margin">@Value</p>
+        </div>
+    </div>
+    <div class="stat-footer small-text">
+        <i>@FooterIcon</i>
+        <span>@Footer</span>
+    </div>
+</article>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Icon { get; set; } = "insights";
+
+    [Parameter, EditorRequired]
+    public string Label { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired]
+    public string Value { get; set; } = string.Empty;
+
+    [Parameter]
+    public string Footer { get; set; } = string.Empty;
+
+    [Parameter]
+    public string FooterIcon { get; set; } = "check";
+
+    /// <summary>Tom visual: <c>primary</c>, <c>accent</c> ou <c>neutral</c>.</summary>
+    [Parameter]
+    public string Tone { get; set; } = "primary";
+}

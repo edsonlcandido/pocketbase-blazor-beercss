@@ -1,0 +1,134 @@
+@page "/"
+@inject LandingOptions Options
+
+<PageTitle>PocketBase + Blazor + BeerCSS</PageTitle>
+
+<nav class="top-nav">
+    <div class="row middle-align no-space">
+        <span class="brand">
+            <i>rocket_launch</i>
+            <strong>PocketBase + Blazor</strong>
+        </span>
+    </div>
+    <div class="row right-align middle-align no-space">
+        <a class="button" href="@Options.WebAppUrl">
+            <span>Acessar App</span>
+            <i>arrow_forward</i>
+        </a>
+    </div>
+</nav>
+
+<main class="landing">
+    <section class="hero center-align">
+        <span class="chip fill">✨ Template Completo e Moderno</span>
+
+        <h1 class="h1 small">
+            Bem-vindo ao
+            <span class="primary-text">Futuro do Desenvolvimento</span>
+        </h1>
+
+        <p class="large-text muted hero-text">
+            Template completo para projetos com PocketBase, Blazor WebAssembly e BeerCSS.
+            Tudo que você precisa para começar seu próximo projeto incrível! 🚀
+        </p>
+
+        <div class="row center-align no-space wrap">
+            <a class="button large" href="@Options.WebAppUrl">
+                <span>Começar agora</span>
+                <i>arrow_forward</i>
+            </a>
+            <a class="button border large" href="https://github.com/edsonlcandido/pocketbase-blazor-beercss" target="_blank" rel="noopener">
+                <i>code</i>
+                <span>Ver no GitHub</span>
+            </a>
+        </div>
+    </section>
+
+    <section class="grid">
+        <div class="s12 m4">
+            <article class="feature">
+                <span class="feature-icon"><i>database</i></span>
+                <h2 class="h5">PocketBase</h2>
+                <p class="muted">
+                    Backend completo com autenticação, database e API RESTful.
+                    Tudo em um único executável!
+                </p>
+            </article>
+        </div>
+        <div class="s12 m4">
+            <article class="feature">
+                <span class="feature-icon accent"><i>code</i></span>
+                <h2 class="h5">Blazor WebAssembly</h2>
+                <p class="muted">
+                    C# com tipagem forte e componentização no lado do cliente.
+                    O build vira HTML estático servido pelo próprio PocketBase.
+                </p>
+            </article>
+        </div>
+        <div class="s12 m4">
+            <article class="feature">
+                <span class="feature-icon neutral"><i>palette</i></span>
+                <h2 class="h5">BeerCSS</h2>
+                <p class="muted">
+                    Framework CSS baseado em Material Design 3 — sem build step,
+                    sem configuração e sem JavaScript obrigatório.
+                </p>
+            </article>
+        </div>
+    </section>
+
+    <section class="card features-card">
+        <header class="card-header center-align">
+            <h2 class="h4 no-margin">Características poderosas</h2>
+            <p class="muted large-text no-margin">Tudo que você precisa para construir aplicações modernas</p>
+        </header>
+
+        <div class="card-body">
+            <div class="grid">
+                @foreach (var feature in Features)
+                {
+                    <div class="s12 m6">
+                        <div class="feature-row">
+                            <span class="feature-check"><i>check</i></span>
+                            <span>
+                                <strong class="no-margin">@feature.Title</strong>
+                                <small class="muted">@feature.Description</small>
+                            </span>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    </section>
+
+    <section class="center-align cta">
+        <h2 class="h4">Pronto para começar?</h2>
+        <p class="muted large-text">Rode <code>npm run dev</code> e o template inteiro sobe na sua máquina.</p>
+        <a class="button large" href="@Options.WebAppUrl">
+            <span>Acessar o app</span>
+            <i>arrow_forward</i>
+        </a>
+    </section>
+</main>
+
+<footer class="landing-footer center-align">
+    <p class="small-text muted no-margin">
+        Feito com ❤️ usando PocketBase, Blazor WebAssembly e BeerCSS
+    </p>
+</footer>
+
+@code {
+    private static readonly (string Title, string Description)[] Features =
+    {
+        ("Monorepo com dois apps", "Landing page + Web App em um único repositório organizado"),
+        ("Autenticação completa", "Sistema de auth pronto com PocketBase integrado"),
+        ("Cliente PocketBase em C#", "Camada fina e tipada, sem dependência de SDK externo"),
+        ("Layout responsivo", "Grid, campos, botões e componentes do BeerCSS prontos"),
+        ("Perfil de usuário", "Editar nome, senha, e-mail e foto de perfil"),
+        ("Tema flat", "Cores sólidas — 1 primária + 1 accent, sem gradiente"),
+        ("Routing com proteção", "Páginas privadas redirecionam para o login"),
+        ("Sessão persistente", "Token guardado no navegador e revalidado no servidor"),
+        ("Docker de arquivo único", "Uma imagem com o PocketBase + os dois builds"),
+        ("Migrations versionadas", "O schema é reconstruído a partir do zero em qualquer ambiente"),
+    };
+}

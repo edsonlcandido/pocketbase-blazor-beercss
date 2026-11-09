@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Web App · PocketBase + Blazor + BeerCSS</title>
+    <base href="/" />
+    <script>
+        // O app roda na raiz em desenvolvimento e em /app/ em produção
+        // (onde o PocketBase serve o build). Ajusta o <base> antes do Blazor subir.
+        (function () {
+            var match = window.location.pathname.match(/^(.*)\/app(\/.*)?$/);
+            if (match) {
+                document.querySelector('base').setAttribute('href', match[1] + '/app/');
+            }
+        })();
+    </script>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <link rel="stylesheet" href="beercss/beer.min.css" />
+    <link rel="stylesheet" href="css/app.css" />
+</head>
+
+<body>
+    <div id="app">
+        <div class="center-align top-margin large-padding">
+            <progress class="circle" aria-label="Carregando"></progress>
+        </div>
+    </div>
+
+    <div id="blazor-error-ui">
+        Ocorreu um erro inesperado.
+        <a href="." class="reload">Recarregar</a>
+        <span class="dismiss">🗙</span>
+    </div>
+
+    <script src="_framework/blazor.webassembly.js"></script>
+</body>
+
+</html>

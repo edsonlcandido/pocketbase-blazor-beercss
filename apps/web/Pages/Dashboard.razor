@@ -1,0 +1,87 @@
+@page "/dashboard"
+@attribute [Authorize]
+@inject AuthService Auth
+@inject ProfileService Profile
+@inject NavigationManager Navigation
+
+<PageTitle>Dashboard · Web App</PageTitle>
+
+<h1 class="h4 no-margin">Olá, @Profile.UserName! 👋</h1>
+<p class="muted">Seja bem-vindo de volta ao seu painel de controle.</p>
+
+<div class="medium-space"></div>
+
+<section class="grid">
+    <div class="s12 m6 l4">
+        <StatCard Icon="group" Label="Total de usuários" Value="@UserCount" Footer="Sistema ativo" FooterIcon="trending_up" Tone="primary" />
+    </div>
+    <div class="s12 m6 l4">
+        <StatCard Icon="description" Label="Documentos" Value="0" Footer="Pronto para começar" FooterIcon="description" Tone="accent" />
+    </div>
+    <div class="s12 m6 l4">
+        <StatCard Icon="verified" Label="Status" Value="Ativo" Footer="Tudo funcionando" FooterIcon="check_circle" Tone="neutral" />
+    </div>
+</section>
+
+<div class="medium-space"></div>
+
+<section class="card">
+    <header class="card-header">
+        <h2 class="h6 no-margin">⚡ Ações rápidas</h2>
+        <p class="muted small-text no-margin">Execute tarefas comuns rapidamente</p>
+    </header>
+
+    <div class="grid card-body">
+        <div class="s12 m6 l3">
+            <button type="button" class="quick-action">
+                <span class="quick-icon"><i>add_circle</i></span>
+                <span class="quick-text">
+                    <strong>Novo item</strong>
+                    <small>Criar um novo registro</small>
+                </span>
+            </button>
+        </div>
+        <div class="s12 m6 l3">
+            <button type="button" class="quick-action">
+                <span class="quick-icon"><i>settings</i></span>
+                <span class="quick-text">
+                    <strong>Configurações</strong>
+                    <small>Ajustar preferências</small>
+                </span>
+            </button>
+        </div>
+        <div class="s12 m6 l3">
+            <a href="bio" class="quick-action">
+                <span class="quick-icon"><i>person</i></span>
+                <span class="quick-text">
+                    <strong>Minha bio</strong>
+                    <small>Ver e editar meus dados de conta</small>
+                </span>
+            </a>
+        </div>
+        <div class="s12 m6 l3">
+            <a href="/" class="quick-action">
+                <span class="quick-icon"><i>home</i></span>
+                <span class="quick-text">
+                    <strong>Ir para a home</strong>
+                    <small>Voltar à página inicial</small>
+                </span>
+            </a>
+        </div>
+    </div>
+</section>
+
+<div class="medium-space"></div>
+
+<div class="notification info">
+    <i>info</i>
+    <span>
+        Este é um template completo de dashboard usando <strong>PocketBase</strong>,
+        <strong>Blazor WebAssembly</strong> e <strong>BeerCSS</strong>.
+        Customize como quiser e crie aplicações incríveis! 🚀
+    </span>
+</div>
+
+@code {
+    private string UserCount => Auth.User is null ? "0" : "1";
+}

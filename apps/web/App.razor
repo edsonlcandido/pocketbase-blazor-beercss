@@ -1,0 +1,52 @@
+@inject AuthService Auth
+@inject NavigationManager Navigation
+
+<Router AppAssembly="@typeof(Program).Assembly">
+    <Found Context="routeData">
+        <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(AppLayout)">
+            <Authorizing>
+                <div class="center-align top-margin large-padding">
+                    <progress class="circle" aria-label="Carregando"></progress>
+                </div>
+            </Authorizing>
+            <NotAuthorized>
+                @if (context.User.Identity?.IsAuthenticated != true)
+                {
+                    <RedirectToLogin />
+                }
+                else
+                {
+                    <div class="center-align top-margin large-padding">
+                        <h1 class="h5">Acesso negado</h1>
+                        <p>Você não tem permissão para acessar esta página.</p>
+                    </div>
+                }
+            </NotAuthorized>
+        </AuthorizeRouteView>
+        <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+    </Found>
+    <NotFound>
+        <LayoutView Layout="@typeof(AppLayout)">
+            <div class="center-align top-margin large-padding">
+                <h1 class="h2">404</h1>
+                <p>Página não encontrada.</p>
+                <a class="button" href="dashboard" @onclick="GoToDashboard" @onclick:preventDefault="true">
+                    Voltar ao início
+                </a>
+            </div>
+        </LayoutView>
+    </NotFound>
+</Router>
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        // Restaura a sessão antes da primeira renderização — o equivalente ao
+        // navigation guard do Vue Router. Sem isso, uma rota protegida
+        // redirecionaria para /login antes do token ser lido do navegador.
+        await Auth.InitializeAsync();
+    }
+
+    // Caminho relativo: resolvido contra o <base href> ("/" em dev, "/app/" em prod).
+    private void GoToDashboard() => Navigation.NavigateTo("dashboard");
+}

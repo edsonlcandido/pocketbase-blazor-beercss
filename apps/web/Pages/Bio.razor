@@ -1,0 +1,506 @@
+@page "/bio"
+@attribute [Authorize]
+@using System.Globalization
+@inject AuthService Auth
+@inject ProfileService Profile
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+<PageTitle>Minha bio · Web App</PageTitle>
+
+<div class="profile-hero">
+    <div class="row middle-align wrap no-space">
+        <div class="profile-avatar">
+            @if (!string.IsNullOrEmpty(Profile.AvatarUrl))
+            {
+                <img src="@Profile.AvatarUrl" alt="@Profile.UserName" />
+            }
+            else
+            {
+                <span>@Profile.Initials</span>
+            }
+        </div>
+        <div class="left-margin">
+            <div class="row middle-align wrap no-space">
+                <h1 class="h4 no-margin">@Profile.UserName</h1>
+                @if (Profile.IsVerified)
+                {
+                    <span class="chip fill small-text"><i>verified</i> E-mail verificado</span>
+                }
+                else
+                {
+                    <span class="chip small-text"><i>warning</i> E-mail não verificado</span>
+                }
+            </div>
+            <p class="muted no-margin">@Profile.User?.Email</p>
+        </div>
+    </div>
+</div>
+
+<div class="medium-space"></div>
+
+@if (!string.IsNullOrEmpty(_error))
+{
+    <FeedbackAlert Kind="FeedbackAlertKind.Error" Message="@_error" />
+    <div class="small-space"></div>
+}
+else if (!string.IsNullOrEmpty(_success))
+{
+    <FeedbackAlert Kind="FeedbackAlertKind.Success" Message="@_success" />
+    <div class="small-space"></div>
+}
+
+<div class="grid">
+    <div class="s12 l4">
+        <section class="card">
+            <header class="card-header">
+                <h2 class="h6 no-margin"><i>photo_camera</i> Foto de perfil</h2>
+                <p class="muted small-text no-margin">JPG, PNG, GIF ou WEBP até 5 MB</p>
+            </header>
+            <div class="card-body">
+                <div class="row middle-align no-space">
+                    <div class="profile-avatar small">
+                        @if (!string.IsNullOrEmpty(_previewUrl))
+                        {
+                            <img src="@_previewUrl" alt="Pré-visualização do avatar" />
+                        }
+                        else if (!string.IsNullOrEmpty(Profile.AvatarUrl))
+                        {
+                            <img src="@Profile.AvatarUrl" alt="@Profile.UserName" />
+                        }
+                        else
+                        {
+                            <span>@Profile.Initials</span>
+                        }
+                    </div>
+                    <div class="left-margin">
+                        <label class="button border">
+                            <i>image</i>
+                            <span>Escolher imagem</span>
+                            <InputFile OnChange="OnAvatarSelectedAsync" accept="image/*" />
+                        </label>
+                        @if (_pendingFileName is not null)
+                        {
+                            <p class="small-text muted no-margin">@_pendingFileName</p>
+                        }
+                    </div>
+                </div>
+
+                <div class="medium-space"></div>
+
+                <button type="button" class="button large-width" disabled="@(_pendingFile is null || _saving)" @onclick="UploadAvatarAsync">
+                    @if (_saving)
+                    {
+                        <progress class="circle small"></progress>
+                        <span>Enviando...</span>
+                    }
+                    else
+                    {
+                        <i>cloud_upload</i>
+                        <span>Enviar foto</span>
+                    }
+                </button>
+            </div>
+        </section>
+
+        <div class="medium-space"></div>
+
+        <section class="card">
+            <header class="card-header">
+                <h2 class="h6 no-margin"><i>lock</i> Privacidade</h2>
+            </header>
+            <div class="card-body">
+                <label class="row top-align no-space">
+                    <span class="switch">
+                        <input type="checkbox" checked="@_emailVisibility" @onchange="OnEmailVisibilityChangedAsync" />
+                        <span></span>
+                    </span>
+                    <span class="left-margin">
+                        <strong class="no-margin">Mostrar meu e-mail publicamente</strong>
+                        <small class="muted">
+                            Desligado, seu e-mail fica visível apenas para você.
+                        </small>
+                    </span>
+                </label>
+            </div>
+        </section>
+    </div>
+
+    <div class="s12 l8">
+        <section class="card">
+            <header class="card-header row middle-align no-space">
+                <div>
+                    <h2 class="h6 no-margin"><i>badge</i> Dados da conta</h2>
+                    <p class="muted small-text no-margin">Informações registradas no PocketBase</p>
+                </div>
+                <button type="button" class="button border small left-margin" disabled="@_loading" @onclick="RefreshAsync">
+                    <i>refresh</i>
+                    <span>Atualizar</span>
+                </button>
+            </header>
+            <div class="card-body">
+                <ul class="list border no-space">
+                    @foreach (var row in AccountRows)
+                    {
+                        <li class="row middle-align no-space">
+                            <span class="muted small-text account-label">@row.Label</span>
+                            <span class="account-value">@row.Value</span>
+                            @if (row.Copyable)
+                            {
+                                <button type="button" class="icon-button" title="Copiar" @onclick="CopyAsync">
+                                    <i>content_copy</i>
+                                </button>
+                            }
+                        </li>
+                    }
+                </ul>
+            </div>
+        </section>
+
+        <div class="medium-space"></div>
+
+        <section class="card">
+            <header class="card-header">
+                <h2 class="h6 no-margin"><i>edit</i> Editar perfil</h2>
+                <p class="muted small-text no-margin">Atualize como você aparece no sistema</p>
+            </header>
+            <div class="card-body">
+                <EditForm Model="_nameModel" OnValidSubmit="SaveNameAsync">
+                    <div class="field label border">
+                        <InputText @bind-Value="_nameModel.Name" placeholder=" " autocomplete="name" />
+                        <label>Nome</label>
+                    </div>
+
+                    <div class="medium-space"></div>
+
+                    <div class="row no-space wrap">
+                        <button type="submit" class="button" disabled="@(_saving || _nameModel.Name.Trim() == Profile.UserName)">
+                            @if (_saving)
+                            {
+                                <progress class="circle small"></progress>
+                            }
+                            else
+                            {
+                                <i>check</i>
+                            }
+                            <span>@(_saving ? "Salvando..." : "Salvar nome")</span>
+                        </button>
+                        <button type="button" class="button border" @onclick="ResetNameDraft">
+                            <span>Descartar</span>
+                        </button>
+                    </div>
+                </EditForm>
+            </div>
+        </section>
+
+        <div class="medium-space"></div>
+
+        <section class="card">
+            <header class="card-header">
+                <h2 class="h6 no-margin"><i>key</i> Alterar senha</h2>
+                <p class="muted small-text no-margin">Mínimo de 8 caracteres</p>
+            </header>
+            <div class="card-body">
+                <EditForm Model="_passwordModel" OnValidSubmit="ChangePasswordAsync">
+                    <div class="field label border">
+                        <InputText @bind-Value="_passwordModel.OldPassword" type="password" placeholder=" " autocomplete="current-password" />
+                        <label>Senha atual</label>
+                    </div>
+
+                    <div class="medium-space"></div>
+
+                    <div class="grid no-space">
+                        <div class="s12 m6">
+                            <div class="field label border">
+                                <InputText @bind-Value="_passwordModel.Password" type="password" placeholder=" " autocomplete="new-password" />
+                                <label>Nova senha</label>
+                            </div>
+                        </div>
+                        <div class="s12 m6">
+                            <div class="field label border">
+                                <InputText @bind-Value="_passwordModel.PasswordConfirm" type="password" placeholder=" " autocomplete="new-password" />
+                                <label>Confirmar nova senha</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="medium-space"></div>
+
+                    <button type="submit" class="button accent" disabled="@_saving">
+                        @if (_saving)
+                        {
+                            <progress class="circle small"></progress>
+                        }
+                        else
+                        {
+                            <i>key</i>
+                        }
+                        <span>@(_saving ? "Alterando..." : "Alterar senha")</span>
+                    </button>
+                </EditForm>
+            </div>
+        </section>
+    </div>
+</div>
+
+@code {
+    private const long MaxAvatarSize = 5 * 1024 * 1024; // 5 MB
+
+    private readonly NameModel _nameModel = new();
+    private readonly PasswordModel _passwordModel = new();
+
+    private bool _loading;
+    private bool _saving;
+    private string _error = string.Empty;
+    private string _success = string.Empty;
+    private string _emailVisibility = string.Empty;
+    private byte[]? _pendingFile;
+    private string? _pendingFileName;
+    private string _pendingFileContentType = "application/octet-stream";
+    private string? _previewUrl;
+
+    private List<AccountRow> AccountRows => new()
+    {
+        new("Nome", Profile.UserName),
+        new("E-mail", Profile.User?.Email ?? "—"),
+        new("ID do usuário", Profile.User?.Id ?? "—", Copyable: true),
+        new("E-mail verificado", Profile.IsVerified ? "Sim" : "Não"),
+        new("Visibilidade do e-mail", Profile.EmailVisibility ? "Público" : "Privado"),
+        new("Criado em", FormatDate(Profile.User?.Created)),
+        new("Atualizado em", FormatDate(Profile.User?.Updated)),
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        _nameModel.Name = Profile.UserName;
+        _emailVisibility = Profile.EmailVisibility ? "on" : string.Empty;
+
+        try
+        {
+            await Profile.LoadAsync();
+            _nameModel.Name = Profile.UserName;
+            _emailVisibility = Profile.EmailVisibility ? "on" : string.Empty;
+        }
+        catch (PocketBaseException exception)
+        {
+            _error = exception.Message;
+        }
+    }
+
+    private async Task RefreshAsync()
+    {
+        _loading = true;
+        ClearFeedback();
+
+        try
+        {
+            await Profile.LoadAsync();
+            _nameModel.Name = Profile.UserName;
+            _emailVisibility = Profile.EmailVisibility ? "on" : string.Empty;
+            _success = "Dados atualizados.";
+        }
+        catch (PocketBaseException exception)
+        {
+            _error = exception.Message;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task OnAvatarSelectedAsync(InputFileChangeEventArgs args)
+    {
+        ClearFeedback();
+        _pendingFile = null;
+        _pendingFileName = null;
+
+        var file = args.File;
+
+        if (file is null)
+        {
+            return;
+        }
+
+        if (!file.ContentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
+        {
+            _error = "Selecione um arquivo de imagem.";
+            return;
+        }
+
+        if (file.Size > MaxAvatarSize)
+        {
+            _error = "A imagem deve ter no máximo 5 MB.";
+            return;
+        }
+
+        _pendingFileName = file.Name;
+
+        await using var stream = file.OpenReadStream(MaxAvatarSize);
+        using var buffer = new MemoryStream();
+        await stream.CopyToAsync(buffer);
+
+        _pendingFile = buffer.ToArray();
+        _pendingFileContentType = file.ContentType;
+        _previewUrl = $"data:{file.ContentType};base64,{Convert.ToBase64String(_pendingFile)}";
+    }
+
+    private async Task UploadAvatarAsync()
+    {
+        if (_pendingFile is null || _pendingFileName is null)
+        {
+            return;
+        }
+
+        _saving = true;
+        ClearFeedback();
+
+        try
+        {
+            await Profile.UploadAvatarAsync(_pendingFile, _pendingFileName, _pendingFileContentType);
+            _success = "Foto de perfil atualizada com sucesso.";
+            _pendingFile = null;
+            _pendingFileName = null;
+            _previewUrl = null;
+        }
+        catch (PocketBaseException exception)
+        {
+            _error = exception.Message;
+        }
+        catch (IOException exception)
+        {
+            _error = "Não foi possível ler o arquivo: " + exception.Message;
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private async Task OnEmailVisibilityChangedAsync(ChangeEventArgs args)
+    {
+        var visible = args.Value is bool value && value;
+        _saving = true;
+        ClearFeedback();
+
+        try
+        {
+            await Profile.UpdateEmailVisibilityAsync(visible);
+            _emailVisibility = visible ? "on" : string.Empty;
+            _success = visible
+                ? "Seu e-mail agora aparece no seu perfil público."
+                : "Seu e-mail voltou a ser privado.";
+        }
+        catch (PocketBaseException exception)
+        {
+            _error = exception.Message;
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private async Task SaveNameAsync()
+    {
+        _saving = true;
+        ClearFeedback();
+
+        try
+        {
+            await Profile.UpdateNameAsync(_nameModel.Name.Trim());
+            _nameModel.Name = Profile.UserName;
+            _success = "Nome atualizado com sucesso.";
+        }
+        catch (PocketBaseException exception)
+        {
+            _error = exception.Message;
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private void ResetNameDraft() => _nameModel.Name = Profile.UserName;
+
+    private async Task ChangePasswordAsync()
+    {
+        if (!string.Equals(_passwordModel.Password, _passwordModel.PasswordConfirm, StringComparison.Ordinal))
+        {
+            _error = "As senhas não conferem.";
+            return;
+        }
+
+        _saving = true;
+        ClearFeedback();
+
+        try
+        {
+            await Profile.ChangePasswordAsync(
+                _passwordModel.OldPassword, _passwordModel.Password, _passwordModel.PasswordConfirm);
+
+            _passwordModel.OldPassword = string.Empty;
+            _passwordModel.Password = string.Empty;
+            _passwordModel.PasswordConfirm = string.Empty;
+            _success = "Senha alterada com sucesso.";
+        }
+        catch (PocketBaseException exception)
+        {
+            _error = exception.Message;
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private async Task CopyAsync()
+    {
+        var id = Profile.User?.Id;
+        if (string.IsNullOrEmpty(id))
+        {
+            return;
+        }
+
+        await JS.InvokeVoidAsync("navigator.clipboard.writeText", id);
+        _success = "ID copiado para a área de transferência.";
+    }
+
+    private void ClearFeedback()
+    {
+        _error = string.Empty;
+        _success = string.Empty;
+    }
+
+    private static string FormatDate(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return "—";
+        }
+
+        var normalized = value.Contains('T') ? value : value.Replace(' ', 'T');
+
+        if (!DateTimeOffset.TryParse(normalized, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var parsed))
+        {
+            return value;
+        }
+
+        return parsed.ToLocalTime().ToString("dd/MM/yyyy HH:mm", CultureInfo.InvariantCulture);
+    }
+
+    private sealed record AccountRow(string Label, string Value, bool Copyable = false);
+
+    private sealed class NameModel
+    {
+        public string Name { get; set; } = string.Empty;
+    }
+
+    private sealed class PasswordModel
+    {
+        public string OldPassword { get; set; } = string.Empty;
+        public string Password { get; set; } = string.Empty;
+        public string PasswordConfirm { get; set; } = string.Empty;
+    }
+}

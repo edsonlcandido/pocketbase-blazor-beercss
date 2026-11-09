@@ -1,0 +1,43 @@
+# Node (usado só como orquestrador dos comandos de dev)
+node_modules
+npm-debug.log
+yarn-error.log
+yarn.lock
+.pnpm-debug.log
+
+# .NET
+**/bin/
+**/obj/
+apps/*/publish/
+*.user
+*.suo
+*.userprefs
+
+# PocketBase
+pocketbase/pocketbase
+pocketbase/pocketbase.exe
+pocketbase/pb_data/*
+!pocketbase/pb_data/.gitkeep
+!pocketbase/pb_data/types.d.ts
+pocketbase/pb_public/*
+!pocketbase/pb_public/.gitkeep
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs
+*.log
+
+# Testing
+coverage
+.nyc_output
+pnpm-lock.yaml

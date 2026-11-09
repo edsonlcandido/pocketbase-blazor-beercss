@@ -1,0 +1,10 @@
+@inject NavigationManager Navigation
+
+@code {
+    protected override void OnInitialized()
+    {
+        // A rota atual exige autenticação e não há token válido — vai para o login.
+        // Caminho relativo: resolvido contra o <base href> ("/" em dev, "/app/" em prod).
+        Navigation.NavigateTo("login", replace: true);
+    }
+}

@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Web</RootNamespace>
+    <AssemblyName>Web</AssemblyName>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="10.0.0" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.Authorization" Version="10.0.0" />
+  </ItemGroup>
+
+  <!--
+    URL do PocketBase injetada no build de produção.
+
+    Padrão: "/" = mesma origem do app (o PocketBase serve o app e a API juntos).
+    Override:  dotnet publish -p:PocketBaseUrl=https://api.exemplo.com
+    O valor de DEV fica em wwwroot/appsettings.json.
+  -->
+  <PropertyGroup>
+    <PocketBaseUrl Condition="'$(PocketBaseUrl)' == ''">/</PocketBaseUrl>
+  </PropertyGroup>
+
+  <Target Name="WritePocketBaseUrl" AfterTargets="Publish">
+    <WriteLinesToFile
+      File="$([System.IO.Path]::Combine('$(PublishDir)', 'wwwroot', 'appsettings.json'))"
+      Overwrite="true"
+      WriteOnlyWhenDifferent="true"
+      Lines="{ &quot;PocketBase&quot;: { &quot;Url&quot;: &quot;$(PocketBaseUrl)&quot; } }" />
+  </Target>
+
+</Project>

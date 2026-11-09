@@ -1,0 +1,13 @@
+services:
+  pocketbase:
+    build: .
+    image: pocketbase-blazor-beercss:latest
+    container_name: pocketbase
+    ports:
+      - "8090:8090"
+    volumes:
+      - pb_data:/app/pb_data
+    restart: unless-stopped
+
+volumes:
+  pb_data:

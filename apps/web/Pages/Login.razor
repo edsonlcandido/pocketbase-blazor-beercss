@@ -1,0 +1,155 @@
+@page "/login"
+@inject AuthService Auth
+@inject NavigationManager Navigation
+
+<PageTitle>@(_isRegistering ? "Criar conta" : "Entrar") · Web App</PageTitle>
+
+<div class="auth-page">
+    <article class="card auth-card">
+        <header class="center-align">
+            <i class="extra">lock</i>
+            <h1 class="h4 no-margin">@(_isRegistering ? "Criar conta" : "Bem-vindo de volta")</h1>
+            <p class="muted">@(_isRegistering
+                ? "Preencha os dados para criar sua conta"
+                : "Entre com suas credenciais para continuar")</p>
+            <a class="link small-text" href="/">← Voltar para a landing page</a>
+        </header>
+
+        <div class="medium-space"></div>
+
+        @if (!string.IsNullOrEmpty(_error))
+        {
+            <FeedbackAlert Kind="FeedbackAlertKind.Error" Message="@_error" />
+            <div class="small-space"></div>
+        }
+
+        <EditForm Model="_model" OnValidSubmit="SubmitAsync">
+            <DataAnnotationsValidator />
+
+            @if (_isRegistering)
+            {
+                <div class="field label border">
+                    <InputText @bind-Value="_model.Name" placeholder=" " autocomplete="name" />
+                    <label>Nome completo</label>
+                </div>
+            }
+
+            <div class="field label border">
+                <InputText @bind-Value="_model.Email" type="email" placeholder=" " autocomplete="email" />
+                <label>E-mail</label>
+            </div>
+            <ValidationMessage For="@(() => _model.Email)" />
+
+            <div class="field label border">
+                <InputText @bind-Value="_model.Password" type="password" placeholder=" " autocomplete="current-password" />
+                <label>Senha</label>
+            </div>
+            <ValidationMessage For="@(() => _model.Password)" />
+
+            @if (_isRegistering)
+            {
+                <div class="field label border">
+                    <InputText @bind-Value="_model.PasswordConfirm" type="password" placeholder=" " autocomplete="new-password" />
+                    <label>Confirmar senha</label>
+                </div>
+            }
+
+            <div class="large-space"></div>
+
+            <button type="submit" class="button large-width" disabled="@_loading">
+                @if (_loading)
+                {
+                    <progress class="circle small"></progress>
+                    <span>Carregando...</span>
+                }
+                else
+                {
+                    <i>@(_isRegistering ? "person_add" : "login")</i>
+                    <span>@(_isRegistering ? "Criar conta" : "Entrar")</span>
+                }
+            </button>
+        </EditForm>
+
+        <div class="medium-space"></div>
+
+        <hr class="divider" />
+
+        <button type="button" class="button border large-width" @onclick="ToggleMode">
+            <i>@(_isRegistering ? "login" : "person_add")</i>
+            <span>@(_isRegistering ? "Já tenho conta — fazer login" : "Criar uma nova conta")</span>
+        </button>
+    </article>
+</div>
+
+@code {
+    private readonly LoginModel _model = new();
+
+    private bool _isRegistering;
+    private bool _loading;
+    private string _error = string.Empty;
+
+    protected override void OnInitialized()
+    {
+        if (Auth.IsAuthenticated)
+        {
+            Navigation.NavigateTo("dashboard");
+        }
+    }
+
+    private void ToggleMode()
+    {
+        _isRegistering = !_isRegistering;
+        _error = string.Empty;
+        _model.Name = string.Empty;
+        _model.Email = string.Empty;
+        _model.Password = string.Empty;
+        _model.PasswordConfirm = string.Empty;
+    }
+
+    private async Task SubmitAsync()
+    {
+        _error = string.Empty;
+
+        if (_isRegistering && !string.Equals(_model.Password, _model.PasswordConfirm, StringComparison.Ordinal))
+        {
+            _error = "As senhas não conferem.";
+            return;
+        }
+
+        _loading = true;
+
+        try
+        {
+            var result = _isRegistering
+                ? await Auth.RegisterAsync(_model.Email, _model.Password, _model.PasswordConfirm, _model.Name)
+                : await Auth.LoginAsync(_model.Email, _model.Password);
+
+            if (result.Success)
+            {
+                Navigation.NavigateTo("dashboard");
+                return;
+            }
+
+            _error = result.Error ?? "Não foi possível concluir o login.";
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private sealed class LoginModel
+    {
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "Informe o e-mail.")]
+        [System.ComponentModel.DataAnnotations.EmailAddress(ErrorMessage = "Informe um e-mail válido.")]
+        public string Email { get; set; } = string.Empty;
+
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "Informe a senha.")]
+        [System.ComponentModel.DataAnnotations.MinLength(8, ErrorMessage = "A senha precisa ter ao menos 8 caracteres.")]
+        public string Password { get; set; } = string.Empty;
+
+        public string PasswordConfirm { get; set; } = string.Empty;
+
+        public string Name { get; set; } = string.Empty;
+    }
+}

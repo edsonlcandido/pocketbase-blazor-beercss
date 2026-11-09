@@ -1,0 +1,56 @@
+@inherits LayoutComponentBase
+@inject AuthService Auth
+@inject NavigationManager Navigation
+
+<div class="app-shell">
+    <nav class="top no-space">
+        <div class="row left-align middle-align">
+            <a class="brand" href="dashboard">
+                <i>rocket_launch</i>
+                <strong>Web App</strong>
+            </a>
+        </div>
+
+        <div class="row right-align middle-align">
+            @if (Auth.IsAuthenticated)
+            {
+                <a class="user-chip" href="bio">
+                    <span class="avatar-chip">@Initials</span>
+                    <span class="m l">@DisplayName</span>
+                </a>
+                <button type="button" class="error" @onclick="LogoutAsync">
+                    <i>logout</i>
+                    <span class="m l">Sair</span>
+                </button>
+            }
+        </div>
+    </nav>
+
+    <main class="page-container">
+        @Body
+    </main>
+</div>
+
+@code {
+    private string DisplayName => string.IsNullOrWhiteSpace(Auth.User?.Name)
+        ? Auth.User?.Email ?? "Usuário"
+        : Auth.User!.Name;
+
+    private string Initials
+    {
+        get
+        {
+            var source = (Auth.User?.Name ?? Auth.User?.Email ?? "?").Trim();
+            var parts = source.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            return parts.Length == 0
+                ? "?"
+                : string.Concat(parts.Take(2).Select(part => char.ToUpperInvariant(part[0])));
+        }
+    }
+
+    private async Task LogoutAsync()
+    {
+        await Auth.LogoutAsync();
+        Navigation.NavigateTo("login");
+    }
+}

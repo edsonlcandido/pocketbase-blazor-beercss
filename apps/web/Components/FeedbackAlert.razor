@@ -1,0 +1,22 @@
+@if (Kind == FeedbackAlertKind.Success)
+{
+    <div class="notification success" role="status">
+        <i>check_circle</i>
+        <span>@Message</span>
+    </div>
+}
+else
+{
+    <div class="notification error" role="alert">
+        <i>error</i>
+        <span>@Message</span>
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public string Message { get; set; } = string.Empty;
+
+    [Parameter]
+    public FeedbackAlertKind Kind { get; set; } = FeedbackAlertKind.Success;
+}

@@ -1,0 +1,13 @@
+<Router AppAssembly="@typeof(Program).Assembly">
+    <Found Context="routeData">
+        <RouteView RouteData="@routeData" />
+        <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+    </Found>
+    <NotFound>
+        <div class="center-align top-margin large-padding">
+            <h1 class="h2">404</h1>
+            <p>Página não encontrada.</p>
+            <a class="button" href="/">Voltar ao início</a>
+        </div>
+    </NotFound>
+</Router>

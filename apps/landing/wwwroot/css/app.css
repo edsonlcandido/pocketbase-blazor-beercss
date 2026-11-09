@@ -1,0 +1,272 @@
+/* ===========================================================================
+   Tema da landing — cores flat.
+
+   Mesma regra do web app: no máximo 1 primária + 1 accent, ambas SÓLIDAS.
+   A landing usa o accent como cor principal para diferenciar do web app.
+   =========================================================================== */
+
+:root,
+body.light {
+    --primary: #0f766e;
+    --on-primary: #ffffff;
+    --primary-container: #ccfbf1;
+    --on-primary-container: #00201d;
+
+    --secondary: #1d4ed8;
+    --on-secondary: #ffffff;
+    --secondary-container: #dbe4ff;
+    --on-secondary-container: #00174a;
+
+    --tertiary: #1d4ed8;
+    --on-tertiary: #ffffff;
+    --tertiary-container: #dbe4ff;
+    --on-tertiary-container: #00174a;
+
+    --error: #b3261e;
+    --on-error: #ffffff;
+    --error-container: #f9dedc;
+    --on-error-container: #410e0b;
+
+    --background: #f6f7fb;
+    --on-background: #191c22;
+    --surface: #f6f7fb;
+    --on-surface: #191c22;
+    --surface-variant: #e3e6ef;
+    --on-surface-variant: #44474f;
+    --outline: #74777f;
+    --outline-variant: #c4c6d0;
+    --inverse-surface: #2f3136;
+    --inverse-on-surface: #f1f1f4;
+    --inverse-primary: #5eead4;
+    --surface-dim: #d7dae4;
+    --surface-bright: #f6f7fb;
+    --surface-container-lowest: #ffffff;
+    --surface-container-low: #f1f3f9;
+    --surface-container: #ebedf4;
+    --surface-container-high: #e5e8ef;
+    --surface-container-highest: #dfe2ea;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --primary: #5eead4;
+        --on-primary: #003732;
+        --primary-container: #005048;
+        --on-primary-container: #ccfbf1;
+
+        --secondary: #adc6ff;
+        --on-secondary: #00287a;
+        --secondary-container: #0043a5;
+        --on-secondary-container: #dbe4ff;
+
+        --tertiary: #adc6ff;
+        --on-tertiary: #00287a;
+        --tertiary-container: #0043a5;
+        --on-tertiary-container: #dbe4ff;
+
+        --error: #ffb4ab;
+        --on-error: #690005;
+        --error-container: #93000a;
+        --on-error-container: #ffdad4;
+
+        --background: #131417;
+        --on-background: #e3e2e6;
+        --surface: #131417;
+        --on-surface: #e3e2e6;
+        --surface-variant: #44474f;
+        --on-surface-variant: #c4c6d0;
+        --outline: #8e9099;
+        --outline-variant: #44474f;
+        --inverse-surface: #e3e2e6;
+        --inverse-on-surface: #2f3136;
+        --inverse-primary: #0f766e;
+        --surface-dim: #131417;
+        --surface-bright: #393a3f;
+        --surface-container-lowest: #0e0f11;
+        --surface-container-low: #1b1c1f;
+        --surface-container: #1f2023;
+        --surface-container-high: #2a2b2e;
+        --surface-container-highest: #353639;
+    }
+}
+
+/* ===========================================================================
+   Estrutura
+   =========================================================================== */
+
+.top-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    padding: 1rem 1.5rem;
+    background-color: var(--surface-container-low);
+    border-block-end: 0.0625rem solid var(--outline-variant);
+}
+
+.brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1.125rem;
+    color: var(--on-surface);
+}
+
+.brand i {
+    color: var(--primary);
+}
+
+.landing {
+    inline-size: 100%;
+    max-inline-size: 68rem;
+    margin-inline: auto;
+    padding: 3rem 1.5rem 4rem;
+}
+
+.landing-footer {
+    padding: 2rem 1.5rem 3rem;
+    border-block-start: 0.0625rem solid var(--outline-variant);
+}
+
+/* ===========================================================================
+   Hero
+   =========================================================================== */
+
+.hero {
+    padding: 2rem 0 3rem;
+}
+
+.hero h1 {
+    margin: 1rem 0;
+    line-height: 1.15;
+}
+
+.hero-text {
+    max-inline-size: 40rem;
+    margin-inline: auto;
+    margin-block: 1rem 2rem;
+}
+
+.cta {
+    padding: 3rem 1rem 0;
+}
+
+.cta code {
+    background-color: var(--surface-container);
+    padding: 0.125rem 0.375rem;
+    border-radius: 0.25rem;
+}
+
+/* ===========================================================================
+   Cards
+   =========================================================================== */
+
+.feature {
+    block-size: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.feature-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    inline-size: 3.25rem;
+    block-size: 3.25rem;
+    border-radius: 0.875rem;
+    background-color: var(--primary-container);
+    color: var(--on-primary-container);
+}
+
+.feature-icon.accent {
+    background-color: var(--secondary-container);
+    color: var(--on-secondary-container);
+}
+
+.feature-icon.neutral {
+    background-color: var(--surface-container-high);
+    color: var(--on-surface-variant);
+}
+
+.features-card {
+    margin-block-start: 1rem;
+}
+
+.card {
+    padding: 0;
+    overflow: hidden;
+}
+
+.card-header {
+    padding: 1.75rem 1.75rem 1rem;
+    border-block-end: 0.0625rem solid var(--outline-variant);
+}
+
+.card-body {
+    padding: 1.75rem;
+}
+
+.feature-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    border-radius: 0.75rem;
+}
+
+.feature-row:hover {
+    background-color: var(--surface-container);
+}
+
+.feature-check {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    inline-size: 1.75rem;
+    block-size: 1.75rem;
+    flex: none;
+    border-radius: 50%;
+    background-color: var(--primary-container);
+    color: var(--on-primary-container);
+}
+
+.feature-row strong {
+    display: block;
+}
+
+.feature-row small {
+    display: block;
+}
+
+.muted {
+    color: var(--on-surface-variant);
+}
+
+/* ===========================================================================
+   Erro do Blazor
+   =========================================================================== */
+
+#blazor-error-ui {
+    display: none;
+    position: fixed;
+    inset-block-end: 0;
+    inset-inline: 0;
+    z-index: 1000;
+    padding: 0.75rem 1.25rem;
+    background-color: var(--error-container);
+    color: var(--on-error-container);
+}
+
+#blazor-error-ui .dismiss {
+    cursor: pointer;
+    position: absolute;
+    inset-inline-end: 0.75rem;
+    inset-block-start: 0.5rem;
+}
+
+#blazor-error-ui .reload {
+    color: inherit;
+    font-weight: 600;
+}
