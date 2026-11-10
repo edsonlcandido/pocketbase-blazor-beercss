@@ -1,5 +1,3 @@
-using System.Net.Http;
-
 namespace Web.Services;
 
 /// <summary>Resultado de uma tentativa de login/cadastro.</summary>
@@ -55,9 +53,12 @@ public sealed class AuthService
             await _storage.SetAsync(TokenStorageKey, _pb.Token ?? token);
             Notify();
         }
-        catch (Exception exception) when (exception is PocketBaseException or HttpRequestException)
+        catch (Exception exception)
         {
-            // Token inválido ou usuário removido — limpa a sessão.
+            // Token inválido/expirado, PocketBase fora do ar ou URL mal configurada:
+            // limpa a sessão e segue para o login. O boot do app NÃO pode quebrar
+            // por causa de uma sessão salva no navegador.
+            Console.WriteLine($"[auth] falha ao restaurar a sessão: {exception.Message}");
             await LogoutAsync();
         }
     }

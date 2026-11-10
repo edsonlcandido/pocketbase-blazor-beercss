@@ -132,7 +132,9 @@ Isso é o que impede uma rota protegida de redirecionar para o login antes do to
 
 ### Token inválido
 
-`InitializeAsync` trata `PocketBaseException` e `HttpRequestException` chamando `LogoutAsync()` — a sessão morta é limpa sozinha.
+`InitializeAsync` trata **qualquer** exceção chamando `LogoutAsync()` — a sessão morta é limpa sozinha e o app segue para o login.
+
+> ⚠️ **O catch é largo de propósito.** Como o `await Auth.InitializeAsync()` roda **antes** da primeira renderização, qualquer exceção que escape daqui derruba o app inteiro (tela de erro, nada renderizado). Isso inclui `UriFormatException` de URL mal montada e `HttpRequestException` de PocketBase fora do ar. A sessão salva no navegador nunca pode impedir o app de subir.
 
 ---
 

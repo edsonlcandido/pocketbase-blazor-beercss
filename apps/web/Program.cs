@@ -16,7 +16,19 @@ builder.Services.AddSingleton(new PocketBaseOptions(
 // O HttpClient é registrado aqui porque o PocketBaseClient depende dele.
 // O BaseAddress é a ORIGEM do host (sem o path /app/), e o PocketBaseClient
 // sempre monta URLs absolutas a partir do PocketBaseOptions.
-var hostOrigin = new Uri(new Uri(builder.HostEnvironment.BaseAddress).GetLeftPart(UriPartial.Authority));
+var appBase = builder.HostEnvironment.BaseAddress;
+var hostOrigin = new Uri(appBase);
+if (string.IsNullOrEmpty(hostOrigin.Host) ||
+    (hostOrigin.Scheme != Uri.UriSchemeHttp && hostOrigin.Scheme != Uri.UriSchemeHttps))
+{
+    // fallback: usa a URL do app como está (só acontece em origens não-http).
+    hostOrigin = new Uri(appBase);
+}
+else
+{
+    hostOrigin = new Uri(hostOrigin.GetLeftPart(UriPartial.Authority));
+}
+
 builder.Services.AddScoped(_ => new HttpClient { BaseAddress = hostOrigin });
 
 builder.Services.AddScoped<PocketBaseClient>();

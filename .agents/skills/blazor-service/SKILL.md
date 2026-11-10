@@ -72,8 +72,11 @@ A correção é registrar o `HttpClient` na mão:
 
 ```csharp
 // apps/web/Program.cs
-var hostOrigin = new Uri(
-    new Uri(builder.HostEnvironment.BaseAddress).GetLeftPart(UriPartial.Authority));
+var appBase = builder.HostEnvironment.BaseAddress;
+var hostOrigin = new Uri(appBase);
+hostOrigin = string.IsNullOrEmpty(hostOrigin.Host)
+    ? hostOrigin
+    : new Uri(hostOrigin.GetLeftPart(UriPartial.Authority));
 
 builder.Services.AddScoped(_ => new HttpClient { BaseAddress = hostOrigin });
 ```
@@ -161,6 +164,44 @@ public sealed class PbList<T>
 
 `BaseUrl` já resolve os dois casos. **Nunca** monte a URL à mão nas chamadas.
 
+#### ⚠️ `Uri.TryCreate(x, UriKind.Absolute)` mente no browser-wasm
+
+O runtime WASM usa **semântica de caminho Unix**: `"/"` é um caminho absoluto. Então:
+
+```csharp
+// ❌ no browser-wasm: devolve TRUE e o Uri vira file:///
+Uri.TryCreate("/", UriKind.Absolute, out var u);   // u.Scheme == "file"
+
+// no desktop (Windows) devolve FALSE — o bug só aparece no navegador
+```
+
+Com `PocketBase:Url = "/"` (config de produção), o `BaseUrl` virava `"file:"`, a requisição saía como `file:/api/...` e o app quebrava no boot com:
+
+```
+System.UriFormatException: net_uri_BadAuthority   // "The hostname could not be parsed"
+   at System.Uri..ctor(Uri baseUri, Uri relativeUri)
+   at System.Net.Http.HttpClient.PrepareRequestMessage(HttpRequestMessage)
+```
+
+**Regra: só trate como URL absoluta o que tem esquema `http`/`https` explícito.** Use o helper `TryGetHttpUri` do `PocketBaseClient`:
+
+```csharp
+private static bool TryGetHttpUri(string? candidate, [NotNullWhen(true)] out Uri? uri)
+{
+    uri = null;
+    if (string.IsNullOrWhiteSpace(candidate)) return false;
+    if (!Uri.TryCreate(candidate, UriKind.Absolute, out var parsed)) return false;
+    if (parsed.Scheme != Uri.UriSchemeHttp && parsed.Scheme != Uri.UriSchemeHttps) return false;
+    if (string.IsNullOrEmpty(parsed.Host)) return false;
+    uri = parsed;
+    return true;
+}
+```
+
+Qualquer coisa fora de http/https é **caminho relativo** → combina com `NavigationManager.BaseUri` (fallback: `HttpClient.BaseAddress`).
+
+> Para reproduzir uma URL do WASM sem subir o app, use um harness de console que **linka o fonte real** do `PocketBaseClient.cs` e um `NavigationManager` fake — o `Uri` do desktop não reproduz a pegadinha.
+
 ---
 
 ## Estado compartilhado entre páginas
@@ -192,6 +233,7 @@ Para estado que só interessa a uma página, use `@code { private bool _carregan
 | `pocketbase.storage.get` no JS interop | `localStorage.getItem` — o global `pocketbase` é do SDK JS e não existe aqui |
 | SDK NuGet do PocketBase | cliente fino do repo (sem risco de breaking change) |
 | `try/catch` engolindo exceção | catch de `PocketBaseException` e trate a mensagem |
+| `Uri.TryCreate(x, UriKind.Absolute)` para decidir se a config é URL | `TryGetHttpUri` (exige esquema `http`/`https`) — no WASM, `"/"` vira `file:///` |
 | `StateHasChanged()` manual | o Blazor re-renderiza sozinho após `await` em handler |
 | accessing `pb_data` direto do app | sempre pela API do PocketBase |
 

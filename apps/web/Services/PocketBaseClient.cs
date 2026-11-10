@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
@@ -61,15 +62,64 @@ public sealed class PocketBaseClient
                 configured = "/";
             }
 
-            if (Uri.TryCreate(configured, UriKind.Absolute, out var absolute))
+            // Só é URL absoluta quando tem esquema http(s) EXPLÍCITO.
+            // Cuidado: Uri.TryCreate(x, UriKind.Absolute) devolve TRUE para "/" no
+            // runtime browser-wasm (semântica de caminho Unix: "/x" vira file:///x).
+            // Sem esse filtro, a config de produção "/" virava "file:" e a requisição
+            // quebrava com UriFormatException (net_uri_BadAuthority).
+            if (TryGetHttpUri(configured, out var absoluteUri))
             {
-                return (absolute.GetLeftPart(UriPartial.Authority) + absolute.AbsolutePath).TrimEnd('/');
+                return (absoluteUri.GetLeftPart(UriPartial.Authority) + absoluteUri.AbsolutePath).TrimEnd('/');
             }
 
             // URL relativa: mesma origem do app (produção).
-            var origin = new Uri(_navigation.BaseUri).GetLeftPart(UriPartial.Authority);
-            return (origin + configured).TrimEnd('/');
+            if (!TryGetHttpUri(_navigation.BaseUri, out var navigationUri))
+            {
+                TryGetHttpUri(_http.BaseAddress?.ToString(), out navigationUri);
+            }
+
+            if (navigationUri is null || string.IsNullOrEmpty(navigationUri.Host))
+            {
+                throw new InvalidOperationException(
+                    "Não foi possível determinar a URL do PocketBase. Configure 'PocketBase:Url' com uma URL absoluta (http/https) ou com um caminho relativo.");
+            }
+
+            var origin = navigationUri.GetLeftPart(UriPartial.Authority);
+            var relativePath = configured.StartsWith('/') ? configured : "/" + configured;
+            return (origin + relativePath).TrimEnd('/');
         }
+    }
+
+    /// <summary>
+    /// Converte o texto em <see cref="Uri"/> absoluto http(s).
+    /// Qualquer outro esquema (inclusive "file", gerado pelo browser-wasm para "/") é rejeitado.
+    /// </summary>
+    private static bool TryGetHttpUri(string? candidate, [NotNullWhen(true)] out Uri? uri)
+    {
+        uri = null;
+
+        if (string.IsNullOrWhiteSpace(candidate))
+        {
+            return false;
+        }
+
+        if (!Uri.TryCreate(candidate, UriKind.Absolute, out var parsed))
+        {
+            return false;
+        }
+
+        if (parsed.Scheme != Uri.UriSchemeHttp && parsed.Scheme != Uri.UriSchemeHttps)
+        {
+            return false;
+        }
+
+        if (string.IsNullOrEmpty(parsed.Host))
+        {
+            return false;
+        }
+
+        uri = parsed;
+        return true;
     }
 
     public void SetToken(string? token) => Token = token;

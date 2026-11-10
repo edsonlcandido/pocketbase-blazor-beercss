@@ -143,12 +143,21 @@ O `PocketBaseOptions` carrega esse JSON via `HttpClient.GetFromJsonAsync("appset
 
 ```csharp
 // apps/web/Services/PocketBaseClient.cs
-if (Uri.TryCreate(configured, UriKind.Absolute, out var absolute))
-    return (absolute.GetLeftPart(UriPartial.Authority) + absolute.AbsolutePath).TrimEnd('/');
+// ⚠️ Não use Uri.TryCreate(x, UriKind.Absolute) para decidir: no browser-wasm
+// ele devolve TRUE para "/" (semântica Unix) e o Uri vira file:/// → BaseUrl = "file:"
+// → UriFormatException: net_uri_BadAuthority no HttpClient.PrepareRequestMessage.
+if (TryGetHttpUri(configured, out var absoluteUri))
+    return (absoluteUri.GetLeftPart(UriPartial.Authority) + absoluteUri.AbsolutePath).TrimEnd('/');
 
-var origin = new Uri(_navigation.BaseUri).GetLeftPart(UriPartial.Authority);
-return (origin + configured).TrimEnd('/');
+if (!TryGetHttpUri(_navigation.BaseUri, out var navigationUri))
+    TryGetHttpUri(_http.BaseAddress?.ToString(), out navigationUri);
+
+var origin = navigationUri!.GetLeftPart(UriPartial.Authority);
+var relativePath = configured.StartsWith('/') ? configured : "/" + configured;
+return (origin + relativePath).TrimEnd('/');
 ```
+
+> `TryGetHttpUri` só aceita esquema `http`/`https` com host não vazio. Detalhe completo em `.agents/skills/blazor-service/SKILL.md`.
 
 > ⚠️ **Não confie em `new URL(request.url).origin` no servidor.** Atrás de proxy (Easypanel, Nginx, Cloudflare), o `Host` que chega é o interno (`localhost:3000`) e `X-Forwarded-Host` pode nem ser enviado — o `origin` sai errado. Resolver pela origem **do lado do cliente** (como o `PocketBaseClient` faz) é o que funciona.
 
