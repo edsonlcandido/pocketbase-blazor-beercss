@@ -226,23 +226,20 @@ Rede Docker interna: nenhum serviço precisa expor porta pública se só fala co
 ## Testar localmente
 
 ```bash
-# 1) Build dos dois apps + cópia pro pb_public
-npm run build
+# 1) Build dos dois apps (o MSBuild já copia pro pb_public)
+dotnet publish apps/landing -c Release -o apps/landing/publish
+dotnet publish apps/web     -c Release -o apps/web/publish
 
-# 2) Subir o PB (o script baixa o binário se não existir)
-npm run dev:pb
+# 2) Subir o PocketBase
+docker compose up -d
 
-# 3) Ou manualmente
-# dotnet publish apps/landing -c Release -o apps/landing/publish
-# dotnet publish apps/web    -c Release -o apps/web/publish
-# node scripts/copy-landing.js   # apps/landing/publish/wwwroot -> pb_public/
-# node scripts/copy-app.js       # apps/web/publish/wwwroot    -> pb_public/app/
-# ./pocketbase serve
+# 3) Ou manualmente (com o binário baixado)
+# cd pocketbase && ./pocketbase serve --http=127.0.0.1:8090
 ```
 
 Acesso: landing em `/`, web app em `/app/`, admin em `/_/`.
 
-> **Ordem importa:** `build` faz `publish` **antes** do `copy`. Rodar o `copy` antes do `publish` copia uma build velha (ou nada).
+> **A cópia pro `pb_public` é feita pelo MSBuild** (alvo `CopyToPocketBase`, em `Directory.Build.targets`): `apps/landing` → `pb_public/`, `apps/web` → `pb_public/app/`. A limpeza usa um manifesto (`.published.txt`) — só o que o app publicou é apagado, então os dois builds não se derrubam.
 
 ---
 

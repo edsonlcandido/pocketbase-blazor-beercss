@@ -27,6 +27,15 @@
     <PocketBaseUrl Condition="'$(PocketBaseUrl)' == ''">/</PocketBaseUrl>
   </PropertyGroup>
 
+  <!--
+    Copia o build para pocketbase/pb_public/app (servido em /app/).
+    O alvo em si vive no Directory.Build.targets da raiz.
+  -->
+  <PropertyGroup>
+    <PocketBaseCopy>true</PocketBaseCopy>
+    <PocketBasePublicDir>$(MSBuildThisFileDirectory)..\..\pocketbase\pb_public\app</PocketBasePublicDir>
+  </PropertyGroup>
+
   <Target Name="WritePocketBaseUrl" AfterTargets="Publish">
     <WriteLinesToFile
       File="$([System.IO.Path]::Combine('$(PublishDir)', 'wwwroot', 'appsettings.json'))"

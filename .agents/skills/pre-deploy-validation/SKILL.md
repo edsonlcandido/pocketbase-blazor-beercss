@@ -11,8 +11,9 @@ Os checks são proporcionais ao que mudou — não rode tudo sempre.
 
 | O que mudou | Check |
 |---|---|
-| `apps/web/**` | Check 2 — `npm run build:web` |
-| `apps/landing/**` | Check 2 — `npm run build:landing` |
+| `apps/web/**` | Check 2 — `dotnet publish apps/web` |
+| `apps/landing/**` | Check 2 — `dotnet publish apps/landing` |
+| `Directory.Build.targets` | Check 2 — os dois `dotnet publish` (o alvo de cópia roda junto) |
 | `pocketbase/pb_migrations/**` | Check 1 — PB local com `pb_data` limpo |
 | `pocketbase/pb_hooks/**` | Check 1 — PB local (hook quebrado = 500 em runtime) |
 | `Dockerfile` / `docker-compose.yaml` | Check 3 — `docker build .` |
@@ -23,20 +24,22 @@ Os checks são proporcionais ao que mudou — não rode tudo sempre.
 ## Check 1 — migration/hook do PocketBase roda limpo
 
 ```bash
-# 1) Limpa o pb_data (estado limpo: garante que a migration roda do zero)
-rm -rf pocketbase/pb_data          # Linux/macOS
-# Windows: use a lixeira do runtime (mavis-trash) — NUNCA "Remove-Item -Recurse -Force"
+# 1) Sobe o PB com o banco zerado (o volume do compose é descartado)
+docker compose down -v
 
 # 2) Sobe o PB. Ele aplica TODAS as migrations de pb_migrations/ no startup.
-npm run dev:pb
+docker compose up -d
+docker logs -f pocketbase
 ```
 
 Aguarde o startup e olhe o stdout:
 
-- ✅ **Sinal verde**: `Server started at http://127.0.0.1:8090` e **nenhuma** linha `failed to apply migration`.
+- ✅ **Sinal verde**: `Server started at http://0.0.0.0:8090` e **nenhuma** linha `failed to apply migration`.
 - ❌ **Sinal vermelho**: `Error: failed to apply migration 1794182400_x.js: <erro>` → **NÃO commite**. Corrija a migration e volte do passo 1.
 
 > O PB pode continuar rodando mesmo com migration falhada. Olhe **a linha de erro**, não só a de "server started".
+
+> **Sem Docker?** Baixe o binário 0.40.5, rode de dentro da pasta `pocketbase/` (`./pocketbase serve --http=127.0.0.1:8090`) e limpe o `pocketbase/pb_data` antes (na lixeira do runtime — nunca `Remove-Item -Recurse -Force`).
 
 ### Verificações de sanidade (SQLite)
 
@@ -78,24 +81,20 @@ Pare o PB local (Ctrl+C) quando terminar — ele não é um daemon que deve fica
 
 ```bash
 # apps/web (Blazor WebAssembly)
-npm run build:web
+dotnet publish apps/web -c Release -o apps/web/publish
 
 # apps/landing (se você mexeu)
-npm run build:landing
-```
-
-Ou direto no app:
-
-```bash
-dotnet publish apps/web -c Release -o apps/web/publish
 dotnet publish apps/landing -c Release -o apps/landing/publish
 ```
+
+> O `dotnet publish` **já copia** o build para `pocketbase/pb_public` (alvo `CopyToPocketBase`, em `Directory.Build.targets`). Para validar só a compilação, sem mexer no `pb_public`: `-p:SkipPocketBaseCopy=true`.
 
 - ✅ **Sinal verde**: exit code 0, sem `error`/`warning`.
 - ❌ **Sinais vermelhos** (bloqueiam o commit):
   - `error CSxxxx` — erro de compilação C#.
   - **Qualquer warning** — `TreatWarningsAsErrors` está ligado nos dois `.csproj`, então warning **quebra** o build.
   - `MSB4044` — target MSBuild com parâmetro obrigatório faltando (o `WriteLinesToFile` precisa de `File`).
+  - `MSB4024` — XML inválido no `Directory.Build.targets` (comment XML não pode conter `--`).
   - exit code ≠ 0.
 
 ### Valide o conteúdo publicado
@@ -110,6 +109,9 @@ ls apps/web/publish/wwwroot/_framework | head
 
 # o build foi copiado pro pb_public?
 ls pocketbase/pb_public/app | head
+
+# o manifesto da limpeza foi gerado?
+ls pocketbase/pb_public/app/.published.txt
 ```
 
 > ⚠️ No .NET 10 **não existe `blazor.boot.json`** — o boot manifest é embutido no `blazor.webassembly.js`. Não procure o arquivo.
@@ -130,6 +132,12 @@ docker build -t pocketbase-blazor-beercss:check .
 - ✅ sai com exit 0.
 - ❌ erro de build (falta de arquivo copiado no Dockerfile, versão do PB inválida no `ARG POCKETBASE_VERSION`, `dotnet publish` falhando dentro do build).
 
+O `Dockerfile` tem dois alvos: `pocketbase` (só o backend, é o que o compose usa) e `production` (PB + os dois builds). Para testar só o backend:
+
+```bash
+docker build --target pocketbase -t pocketbase-blazor-beercss:pb .
+```
+
 Rodar a imagem e validar de ponta a ponta:
 
 ```bash
@@ -148,9 +156,10 @@ docker compose down
 # 1) O que mudou?
 git status --short
 
+```bash
 # 2) Rodar só os checks aplicáveis
-#    - tocou apps/web      → npm run build:web
-#    - tocou apps/landing  → npm run build:landing
+#    - tocou apps/web      → dotnet publish apps/web -c Release -o apps/web/publish
+#    - tocou apps/landing  → dotnet publish apps/landing -c Release -o apps/landing/publish
 #    - tocou pb_migrations → Check 1 (PB local + sqlite3)
 #    - tocou Dockerfile    → docker build .
 

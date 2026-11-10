@@ -137,8 +137,8 @@ Em produção o app é same-origin → CORS não entra.
 ## O build de produção
 
 ```bash
-npm run build:web       # dotnet publish apps/web -c Release -o apps/web/publish
-npm run copy:app       # apps/web/publish/wwwroot → pocketbase/pb_public/app
+dotnet publish apps/web -c Release -o apps/web/publish          # já copia pro pocketbase/pb_public/app
+dotnet publish apps/landing -c Release -o apps/landing/publish  # já copia pro pocketbase/pb_public
 ```
 
 O `dotnet publish` do Blazor WASM gera:
@@ -154,7 +154,26 @@ apps/web/publish/
 └── ...
 ```
 
-> ⚠️ **No .NET 10 não existe mais `blazor.boot.json`** — o boot manifest é embutido no `blazor.webassembly.js`. Se você procurar esse arquivo e não achar, não é bug.
+### A cópia pro `pb_public` (alvo MSBuild)
+
+Quem faz a cópia é o alvo `CopyToPocketBase`, em `Directory.Build.targets` (raiz do repo). Ele roda depois do `Publish` e copia `$(PublishDir)wwwroot` para a pasta definida em `$(PocketBasePublicDir)`:
+
+| App | `PocketBasePublicDir` | Servido em |
+|---|---|---|
+| `apps/landing` | `pocketbase/pb_public` | `/` |
+| `apps/web` | `pocketbase/pb_public/app` | `/app/` |
+
+A limpeza é feita por **manifesto** (`.published.txt`, gravado na pasta de destino): só os arquivos que o app publicou na última build são apagados. Sem isso, o build da landing apagaria o build do web app (e vice-versa) — os dois moram dentro de `pb_public`.
+
+Para desligar a cópia (build só de validação):
+
+```bash
+dotnet publish apps/web -c Release -p:SkipPocketBaseCopy=true
+```
+
+> ⚠️ **Comment XML não pode conter `--`.** Um `---` dentro do comment do `Directory.Build.targets` dá `MSB4024: An XML comment cannot contain '--'`.
+
+> ⚠️ No .NET 10 **não existe mais `blazor.boot.json`** — o boot manifest é embutido no `blazor.webassembly.js`. Se você procurar esse arquivo e não achar, não é bug.
 
 ---
 

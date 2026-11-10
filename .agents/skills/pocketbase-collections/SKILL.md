@@ -157,7 +157,7 @@ Hooks disponíveis:
 
 ## Tipos C#
 
-O PB gera `pocketbase/pb_data/types.d.ts` em runtime. Ele é versionado no git — **não edite à mão**: rode o PB (`npm run dev:pb`) e ele regenera. Ele serve de referência do schema; no app C# os tipos ficam em `apps/web/Services/PocketBaseModels.cs`.
+O PB gera `pocketbase/pb_data/types.d.ts` em runtime. Ele é versionado no git — **não edite à mão**: rode o PB (`docker compose up -d`) e ele regenera. Ele serve de referência do schema; no app C# os tipos ficam em `apps/web/Services/PocketBaseModels.cs`.
 
 ```csharp
 // apps/web/Services/PocketBaseModels.cs
@@ -257,7 +257,7 @@ indexes: [
 
 ## Debug
 
-- `console.log` em hook aparece no stdout do processo do PB (terminal do `npm run dev:pb` ou log do container).
+- `console.log` em hook aparece no stdout do processo do PB (terminal do `docker compose up` ou log do container).
 - Admin UI em `/_/` mostra as collections e as regras de acesso já em vigor.
 - `pb_data/types.d.ts` é o reflexo do schema — se a collection não aparecer lá, o PB não subiu com a migration aplicada.
 

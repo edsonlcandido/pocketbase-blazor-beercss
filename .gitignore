@@ -1,10 +1,3 @@
-# Node (usado só como orquestrador dos comandos de dev)
-node_modules
-npm-debug.log
-yarn-error.log
-yarn.lock
-.pnpm-debug.log
-
 # .NET
 **/bin/
 **/obj/
@@ -40,4 +33,3 @@ logs
 # Testing
 coverage
 .nyc_output
-pnpm-lock.yaml

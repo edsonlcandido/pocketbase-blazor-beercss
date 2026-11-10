@@ -1,12 +1,25 @@
+# PocketBase local (desenvolvimento e preview).
+#
+# Usa o estágio "pocketbase" do Dockerfile: só o binário, sem o SDK do .NET.
+# O build estático dos dois apps entra por volume a partir de
+# pocketbase/pb_public (gerado pelo `dotnet publish`).
 services:
   pocketbase:
-    build: .
-    image: pocketbase-blazor-beercss:latest
+    build:
+      context: .
+      target: pocketbase
+    image: pocketbase-blazor-beercss:pb
     container_name: pocketbase
     ports:
       - "8090:8090"
     volumes:
+      # Estado do banco (persistido fora do repo)
       - pb_data:/app/pb_data
+      # Hooks e migrations versionados no git
+      - ./pocketbase/pb_hooks:/app/pb_hooks
+      - ./pocketbase/pb_migrations:/app/pb_migrations
+      # Build estático dos dois apps (dotnet publish)
+      - ./pocketbase/pb_public:/app/pb_public
     restart: unless-stopped
 
 volumes:

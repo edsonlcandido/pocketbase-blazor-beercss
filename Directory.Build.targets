@@ -1,0 +1,67 @@
+<Project>
+
+  <!--
+    ===========================================================================
+    Compartilhado por todos os projetos do repositório.
+
+    Objetivo: substituir o orquestrador Node por alvos MSBuild, para que o
+    projeto inteiro funcione com apenas o .NET SDK (e Docker, opcional).
+
+    Alvo "CopyToPocketBase"
+
+    Copia o build publicado do app para a pasta pública do PocketBase,
+    dentro de pocketbase/pb_public:
+
+      apps/landing  ->  pocketbase/pb_public        (servido em /)
+      apps/web      ->  pocketbase/pb_public/app    (servido em /app/)
+
+    Cada app define duas variáveis no próprio .csproj:
+      <PocketBaseCopy>true</PocketBaseCopy>
+      <PocketBasePublicDir>...pasta de destino...</PocketBasePublicDir>
+
+    O alvo só é executado quando "PocketBaseCopy" é true.
+
+    A limpeza usa um manifesto (.published.txt) com a lista de arquivos da
+    última publicação: só o que o app publicou é apagado. Assim o build da
+    landing nunca derruba o build do web app (e vice-versa), mesmo morando
+    os dois dentro de pocketbase/pb_public.
+
+    Para pular a cópia (ex.: build só para validar a compilação):
+        dotnet publish apps/web -c Release -p:SkipPocketBaseCopy=true
+    ===========================================================================
+  -->
+
+  <Target Name="CopyToPocketBase"
+          AfterTargets="Publish"
+          Condition="'$(PocketBaseCopy)' == 'true' And '$(SkipPocketBaseCopy)' != 'true'">
+
+    <PropertyGroup>
+      <PocketBaseManifest>$(PocketBasePublicDir)/.published.txt</PocketBaseManifest>
+    </PropertyGroup>
+
+    <!-- Apaga apenas os arquivos da publicação anterior (manifesto). -->
+    <ReadLinesFromFile File="$(PocketBaseManifest)"
+                       Condition="Exists('$(PocketBaseManifest)')">
+      <Output TaskParameter="Lines" ItemName="PreviouslyPublishedFiles" />
+    </ReadLinesFromFile>
+
+    <Delete Files="@(PreviouslyPublishedFiles)" TreatErrorsAsWarnings="true" />
+
+    <!-- Copia preservando a estrutura de pastas (%(RecursiveDir)). -->
+    <ItemGroup>
+      <PublishedFiles Include="$(PublishDir)wwwroot\**\*" />
+    </ItemGroup>
+
+    <Copy SourceFiles="@(PublishedFiles)"
+          DestinationFiles="@(PublishedFiles->'$(PocketBasePublicDir)/%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+
+    <!-- Grava o manifesto da próxima limpeza. -->
+    <WriteLinesToFile File="$(PocketBaseManifest)"
+                      Lines="@(PublishedFiles->'$(PocketBasePublicDir)/%(RecursiveDir)%(Filename)%(Extension)')"
+                      Overwrite="true" />
+
+    <Message Importance="high" Text="Build copiado para $(PocketBasePublicDir)" />
+  </Target>
+
+</Project>

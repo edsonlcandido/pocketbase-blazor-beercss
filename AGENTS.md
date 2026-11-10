@@ -18,7 +18,9 @@ Template de backend + frontend: **PocketBase** como API/auth/DB e **monorepo Bla
 | Monorepo | `apps/landing` + `apps/web` (dois projetos .NET independentes) |
 | Produção | Dockerfile multi-stage → 1 imagem com PB + landing + web app |
 
-Requisitos: **.NET SDK 10** (8 e 6 também funcionam, mas o alvo é o 10), **Node >= 20.19.0** (só para orquestrar os comandos de dev).
+Requisitos: **.NET SDK 10** (8 e 6 também funcionam, mas o alvo é o 10) e **Docker** (para o PocketBase local e a imagem de produção).
+
+> **Sem Node, sem npm.** Não existe `package.json` nem `node_modules` neste repositório — a orquestração de build é feita por alvos MSBuild (`Directory.Build.targets`).
 
 ### O que é cada app
 
@@ -78,16 +80,12 @@ pocketbase-blazor-beercss/
 │       ├── (landing build)       # → /
 │       └── app/                  # (web build) → /app/
 │
-├── scripts/
-│   ├── pocketbase.js         # baixa o binário do PB e sobe em :8090
-│   ├── copy-landing.js       # apps/landing/publish/wwwroot → pb_public/
-│   └── copy-app.js           # apps/web/publish/wwwroot → pb_public/app/
+├── Directory.Build.targets   # alvo CopyToPocketBase (copia o build pro pb_public)
 │
 ├── Dockerfile                # multi-stage: landing-builder → web-builder → alpine+PB
-├── docker-compose.yaml       # PB local com volume pb_data
+├── docker-compose.yaml       # PB local (alvo "pocketbase" do Dockerfile)
 ├── AGENTS.md                 # este arquivo
-├── .agents/skills/           # skills pra agentes de IA
-└── package.json              # root (orquestrador dos comandos de dev)
+└── .agents/skills/           # skills pra agentes de IA
 ```
 
 ---
@@ -95,37 +93,46 @@ pocketbase-blazor-beercss/
 ## 3. Comandos
 
 ```bash
-npm install                # instala o concurrently (única dep npm)
+# desenvolvimento (3 terminais)
+docker compose up -d                          # PocketBase :8090 (API + admin + build estático)
+dotnet watch run --project apps/landing        # landing :5173 (hot reload)
+dotnet watch run --project apps/web            # web app :5174 (hot reload)
 
-# desenvolvimento (tudo junto)
-npm run dev                # PB :8090 + landing :5173 + web :5174
-npm run dev:pb             # só PocketBase (baixa o binário se precisar)
-npm run dev:landing        # só a landing (dotnet watch)
-npm run dev:web            # só o web app (dotnet watch)
+# build (o MSBuild já copia o resultado pro pocketbase/pb_public)
+dotnet publish apps/landing -c Release -o apps/landing/publish
+dotnet publish apps/web     -c Release -o apps/web/publish
 
-# build (o que o Dockerfile faz)
-npm run build              # build:landing → copy:landing → build:web → copy:app
-npm run build:landing      # dotnet publish da landing
-npm run build:web          # dotnet publish do web app
-npm run copy:landing       # apps/landing/publish/wwwroot → pocketbase/pb_public
-npm run copy:app           # apps/web/publish/wwwroot → pocketbase/pb_public/app
+# build só para validar a compilação (sem copiar pro pb_public)
+dotnet publish apps/web -c Release -p:SkipPocketBaseCopy=true
 
-# preview do resultado final
-npm run preview            # sobe o PB (com os builds já copiados) em :8090
+# preview do resultado final (PB servindo os builds)
+docker compose up -d                          # http://localhost:8090/ e /app/
+
+# imagem de produção
+docker build -t pocketbase-blazor-beercss .
 ```
 
 `TreatWarningsAsErrors` está **ligado** nos dois `.csproj` — warning de compilação **quebra o build**.
 
-### Sem Node (opcional)
+### Como o build chega no PocketBase
 
-O Node só orquestra. Dá para rodar direto:
+O alvo `CopyToPocketBase` (em `Directory.Build.targets`, na raiz) roda depois do `dotnet publish`:
+
+| App | `PocketBasePublicDir` | Servido em |
+|---|---|---|
+| `apps/landing` | `pocketbase/pb_public` | `/` |
+| `apps/web` | `pocketbase/pb_public/app` | `/app/` |
+
+A limpeza usa um manifesto (`.published.txt`) com a lista de arquivos da última publicação: **só o que o app publicou é apagado** — o build da landing nunca derruba o build do web app (e vice-versa), mesmo morando os dois dentro de `pb_public`.
+
+> Para desligar a cópia: `-p:SkipPocketBaseCopy=true`.
+
+### Sem Docker?
+
+Baixe o binário do PocketBase 0.40.5 e rode **de dentro da pasta `pocketbase/`** (é de lá que ele lê `pb_hooks/`, `pb_migrations/`, `pb_data/` e `pb_public/`):
 
 ```bash
-node scripts/pocketbase.js                                  # PocketBase
-dotnet watch run --project apps/landing                     # landing
-dotnet watch run --project apps/web                         # web app
-dotnet publish apps/web -c Release -o apps/web/publish     # build
-node scripts/copy-app.js                                    # copiar p/ pb_public
+./pocketbase serve --http=127.0.0.1:8090
 ```
 
 ### Serviços e URLs (dev)
@@ -228,8 +235,9 @@ Sem eles, a página `/bio` não funciona (upload de avatar e o toggle de visibil
 
 | O que mudou | Validação obrigatória antes do commit |
 |---|---|
-| `apps/web/**` | `npm run build:web` (= `dotnet publish`) |
-| `apps/landing/**` | `npm run build:landing` (= `dotnet publish`) |
+| `apps/web/**` | `dotnet publish apps/web -c Release -o apps/web/publish` |
+| `apps/landing/**` | `dotnet publish apps/landing -c Release -o apps/landing/publish` |
+| `Directory.Build.targets` | os dois `dotnet publish` acima (o alvo de cópia roda junto) |
 | `pocketbase/pb_migrations/**` | subir o PB local com `pb_data` limpo e conferir o startup |
 | `pocketbase/pb_hooks/**` | subir o PB local (hook quebrado = 500 em runtime) e testar a rota |
 | `Dockerfile` / `docker-compose.yaml` | `docker build .` |
@@ -265,6 +273,8 @@ git push
 - **`localStorage` via `IJSRuntime`**, não `pocketbase.storage.get` — esse global é do SDK JS do PocketBase, que não existe nesta página (o cliente é 100% C#). O erro (`'pocketbase' was undefined`) acontece dentro do `Auth.InitializeAsync()` e trava o app antes da primeira renderização.
 - **Navegação sempre com caminho RELATIVO** (sem `/` inicial): `Navigation.NavigateTo("bio")` e `<a href="bio">`. Caminho absoluto ignora o `<base href>` e quebra em produção (onde o app mora em `/app/`). Exceção: link pra landing page, que fica na raiz do domínio (`href="/"`).
 - **A rota `/` precisa existir.** O Vue fazia `redirect: '/dashboard'`; no Blazor não existe redirect automático — `Pages/Home.razor` faz `NavigateTo("dashboard", replace: true)`. Sem ela, `/app/` mostra a 404 do `Router`.
+- **A cópia pro `pb_public` é feita por MSBuild** (alvo `CopyToPocketBase` em `Directory.Build.targets`), não por script. A limpeza usa um **manifesto** (`.published.txt`): só o que o app publicou é apagado — por isso o build da landing não derruba o do web app. Comment XML não pode conter `--` (dá `MSB4024`).
+- **O `Dockerfile` tem dois alvos**: `pocketbase` (só o backend — é o que o `docker compose` usa) e `production` (PB + os dois builds). Sem `CMD` no estágio base, o container executa `/bin/sh` e **sai em silêncio com exit 0** — parece que "funcionou" mas o PB nunca subiu.
 
 ### Cliente PocketBase
 
@@ -326,18 +336,17 @@ git push
 ## 10. Referência rápido de comandos
 
 ```bash
-# PocketBase local (baixa o binário 0.40.5 se não existir)
-npm run dev:pb
+# PocketBase local
+docker compose up -d
 
 # validar migrations do zero
-rm -rf pocketbase/pb_data          # Linux/macOS
-# PowerShell: mavis-trash pocketbase\pb_data
-npm run dev:pb
+docker compose down -v              # remove o volume do banco
+docker compose up -d                # o PB aplica as migrations no boot
 
-# build completo
-npm run build && npm run preview
+# build completo (copia pro pb_public)
+dotnet publish apps/landing -c Release -o apps/landing/publish
+dotnet publish apps/web     -c Release -o apps/web/publish
 
 # imagem de produção
 docker build -t pocketbase-blazor-beercss .
-docker compose up -d
 ```

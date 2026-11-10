@@ -197,13 +197,13 @@ migrate((app) => {
 Detalhe do roteiro: `.agents/skills/pre-deploy-validation/SKILL.md` (Check 1). Resumo:
 
 ```bash
-# 1) PB local (o script baixa o binário 0.40.5 se não existir)
-npm run dev:pb
-# ou: cd pocketbase && ./pocketbase serve --http=127.0.0.1:8090
+# 1) PB local (Docker)
+docker compose up -d
+# ou, com o binário na mão: cd pocketbase && ./pocketbase serve --http=127.0.0.1:8090
 
-# 2) Rodar do zero: limpa o pb_data (garante que a migration roda do início)
-rm -rf pocketbase/pb_data          # Linux/macOS
-# PowerShell: Remove-Item -Recurse -Force pocketbase\pb_data
+# 2) Rodar do zero: descarta o volume do banco (garante que a migration roda do início)
+docker compose down -v
+docker compose up -d
 
 # 3) Inspecionar o startup
 #    ✅ "Server started at http://127.0.0.1:8090" e NENHUM "failed to apply migration"
@@ -236,7 +236,7 @@ sqlite3 pocketbase/pb_data/data.db "SELECT name FROM _collections ORDER BY name"
 
 ## Depois que a migration está pronta
 
-1. `npm run build:web` — o build quebra se algum código consome a collection com tipo errado.
+1. `dotnet publish apps/web -c Release -o apps/web/publish` — o build quebra se algum código consome a collection com tipo errado.
 2. `git add pocketbase/pb_migrations/ && git commit -m "feat(pb): ..."`.
 3. `git push`.
 4. Ao subir o PB num ambiente novo, a migration é aplicada no boot — confira o log de startup.
@@ -250,5 +250,5 @@ sqlite3 pocketbase/pb_data/data.db "SELECT name FROM _collections ORDER BY name"
 - [ ] Idempotente (roda 2x sem quebrar)
 - [ ] `down` com `try/catch`
 - [ ] Testada com `pb_data` limpo + `sqlite3`
-- [ ] `npm run build:web` verde
+- [ ] `dotnet publish apps/web` verde
 - [ ] Commitada no git (sem ela, o schema não existe em outro ambiente)

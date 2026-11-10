@@ -17,12 +17,21 @@
 
   <!--
     URL do web app injetada no build de produção.
-    Padrão: "/app" (o PocketBase serve o app em /app/).
+    Padrão: "/app/" (o PocketBase serve o app em /app/).
     Override:  dotnet publish -p:WebAppUrl=https://app.exemplo.com
     O valor de DEV fica em wwwroot/appsettings.json.
   -->
   <PropertyGroup>
     <WebAppUrl Condition="'$(WebAppUrl)' == ''">/app/</WebAppUrl>
+  </PropertyGroup>
+
+  <!--
+    Copia o build para pocketbase/pb_public (servido em /).
+    O alvo em si vive no Directory.Build.targets da raiz.
+  -->
+  <PropertyGroup>
+    <PocketBaseCopy>true</PocketBaseCopy>
+    <PocketBasePublicDir>$(MSBuildThisFileDirectory)..\..\pocketbase\pb_public</PocketBasePublicDir>
   </PropertyGroup>
 
   <Target Name="WriteWebAppUrl" AfterTargets="Publish">

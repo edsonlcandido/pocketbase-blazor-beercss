@@ -23,17 +23,21 @@ Derivado do [pocketbase-vue-tailwind-template](https://github.com/edsonlcandido/
 | Ferramenta | Versão | Para quê |
 |---|---|---|
 | [.NET SDK](https://dotnet.microsoft.com/download) | 10 (8/6 também funcionam) | build e dev dos apps |
-| [Node.js](https://nodejs.org) | >= 20.19.0 | só para orquestrar os comandos (`npm run ...`) |
-| [Docker](https://docs.docker.com/get-docker/) | qualquer | imagem de produção (opcional) |
+| [Docker](https://docs.docker.com/get-docker/) | qualquer | PocketBase local + imagem de produção |
+
+> **Sem Node, sem npm.** O projeto inteiro usa só o .NET SDK (e Docker, opcional). Não há `package.json`, `node_modules` nem script JS.
 
 ## ⚡ Começando
 
 ```bash
-# 1. instala a única dependência npm (o concurrently)
-npm install
+# 1. sobe o PocketBase (API + admin + build estático) em :8090
+docker compose up -d
 
-# 2. sobe tudo: PocketBase + landing + web app
-npm run dev
+# 2. em outro terminal, a landing com hot reload em :5173
+dotnet watch run --project apps/landing
+
+# 3. e em mais um, o web app com hot reload em :5174
+dotnet watch run --project apps/web
 ```
 
 | Serviço | URL |
@@ -43,36 +47,55 @@ npm run dev
 | PocketBase API | http://localhost:8090/api/ |
 | Admin do PocketBase | http://localhost:8090/_/ |
 
-Na primeira vez, o `npm run dev` baixa o binário do PocketBase automaticamente.
-
 > **Crie o primeiro usuário**: abra http://localhost:8090/_/ e complete o instalador do superuser. Depois, em http://localhost:5174, use **Criar uma nova conta** — a collection `users` já vem com os campos `avatar` e `emailVisibility` (migration inicial inclusa).
 
-## 📦 Scripts
+### Sem Docker?
+
+Baixe o binário do PocketBase 0.40.5 e rode direto:
 
 ```bash
-npm run dev              # PB :8090 + landing :5173 + web :5174
-npm run dev:pb           # só PocketBase
-npm run dev:landing      # só a landing (dotnet watch)
-npm run dev:web          # só o web app (dotnet watch)
+# Linux/macOS
+wget https://github.com/pocketbase/pocketbase/releases/download/v0.40.5/pocketbase_0.40.5_linux_amd64.zip
+unzip pocketbase_0.40.5_linux_amd64.zip && chmod +x pocketbase
+./pocketbase serve --http=127.0.0.1:8090
 
-npm run build            # build:landing → copy:landing → build:web → copy:app
-npm run build:landing    # dotnet publish da landing
-npm run build:web        # dotnet publish do web app
-npm run copy:landing     # apps/landing/publish/wwwroot → pocketbase/pb_public
-npm run copy:app         # apps/web/publish/wwwroot → pocketbase/pb_public/app
-
-npm run preview          # sobe o PocketBase já com os builds copiados
+# Windows (PowerShell)
+Invoke-WebRequest https://github.com/pocketbase/pocketbase/releases/download/v0.40.5/pocketbase_0.40.5_windows_amd64.zip -OutFile pb.zip
+Expand-Archive pb.zip -DestinationPath pocketbase -Force
+.\pocketbase\pocketbase.exe serve --http=127.0.0.1:8090
 ```
 
-Sem Node? Os comandos diretos são:
+Rode o binário **de dentro da pasta `pocketbase/`** — é de lá que ele lê `pb_hooks/`, `pb_migrations/`, `pb_data/` e `pb_public/`.
+
+## 📦 Comandos
 
 ```bash
-node scripts/pocketbase.js
-dotnet watch run --project apps/landing
-dotnet watch run --project apps/web
-dotnet publish apps/web -c Release -o apps/web/publish
-node scripts/copy-app.js
+# desenvolvimento (hot reload)
+dotnet watch run --project apps/landing        # :5173
+dotnet watch run --project apps/web            # :5174
+docker compose up -d                          # PocketBase :8090
+
+# build (o MSBuild já copia o resultado pro pocketbase/pb_public)
+dotnet publish apps/landing -c Release -o apps/landing/publish
+dotnet publish apps/web     -c Release -o apps/web/publish
+
+# build só para validar a compilação (sem copiar pro pb_public)
+dotnet publish apps/web -c Release -p:SkipPocketBaseCopy=true
+
+# preview: o PocketBase serve o build em http://localhost:8090/
+docker compose up -d
 ```
+
+### Como o build chega no PocketBase
+
+O alvo `CopyToPocketBase` (em `Directory.Build.targets`, na raiz) roda depois do `dotnet publish` e copia `publish/wwwroot` para a pasta pública do PocketBase:
+
+| App | Destino | Servido em |
+|---|---|---|
+| `apps/landing` | `pocketbase/pb_public` | `/` |
+| `apps/web` | `pocketbase/pb_public/app` | `/app/` |
+
+A limpeza usa um manifesto (`.published.txt`) com a lista de arquivos da última publicação — **só o que o app publicou é apagado**, então o build da landing nunca derruba o build do web app.
 
 ## 🗂️ Estrutura
 
@@ -86,11 +109,11 @@ pocketbase-blazor-beercss/
 │   ├── pb_migrations/    # migrations JS (versionadas no git)
 │   ├── pb_data/          # estado do PocketBase (gitignored)
 │   └── pb_public/        # builds servidos pelo PB (/ e /app)
-├── scripts/              # pocketbase.js, copy-landing.js, copy-app.js
-├── Dockerfile
-├── docker-compose.yaml
+├── Directory.Build.targets   # alvo CopyToPocketBase (copia o build pro pb_public)
+├── Dockerfile            # alvos: pocketbase (só o backend) e production (tudo)
+├── docker-compose.yaml   # PocketBase local
 ├── AGENTS.md             # contexto operacional para agentes de IA
-└── package.json
+└── README.md
 ```
 
 ## ⚙️ Configuração
@@ -113,9 +136,20 @@ dotnet publish apps/landing -c Release -o apps/landing/publish -p:WebAppUrl=http
 
 ## 🐳 Docker
 
+O `Dockerfile` tem dois alvos:
+
+| Alvo | O que é | Quando usar |
+|---|---|---|
+| `pocketbase` | só o binário do PocketBase (Alpine) | backend local — é o que o `docker compose` usa |
+| `production` | PocketBase + os dois builds estáticos | imagem de deploy |
+
 ```bash
-docker build -t pocketbase-blazor-beercss .
+# backend local (o compose monta pb_public, pb_hooks e pb_migrations)
 docker compose up -d
+
+# imagem de produção (PocketBase servindo a landing, o app e a API)
+docker build -t pocketbase-blazor-beercss .
+docker run -p 8090:8090 -v pocketbase-data:/app/pb_data pocketbase-blazor-beercss
 ```
 
 A imagem final é um Alpine com o binário do PocketBase + os dois builds estáticos. Os hooks e as migrations vão junto — o schema é reconstruído no boot.
