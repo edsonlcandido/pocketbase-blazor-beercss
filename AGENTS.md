@@ -267,7 +267,7 @@ git push
 - **`InputFile.OnChange` é `EventCallback<InputFileChangeEventArgs>`**, não `IBrowserFile`. O arquivo vem de `args.File`.
 - **`IBrowserFile.OpenReadStream` só pode ser chamado uma vez** por arquivo. Leia em memória (`MemoryStream`) e reaproveite os bytes.
 - **`TreatWarningsAsErrors` está ligado.** Qualquer warning de compilação quebra o build.
-- **`AuthService.InitializeAsync()` roda antes da primeira renderização** (é awaited no `OnInitializedAsync` do `App.razor`). É isso que impede uma rota protegida de redirecionar para o login antes do token ser lido do `localStorage`.
+- **A sessão é restaurada dentro do `AuthenticationStateProvider`, não no `App.razor`.** O `AuthorizeRouteView` decide a rota **antes** do `OnInitializedAsync` do `App.razor` terminar, então restaurar a sessão lá chegava tarde: o guard via "anônimo" e jogava a rota protegida para `/login` em **todo F5**, mesmo com o token válido. A correção é `PocketBaseAuthenticationStateProvider.GetAuthenticationStateAsync()` **awaitar** `AuthService.InitializeAsync()` — o `AuthorizeRouteView` espera esse await e só então decide (mostrando o `<Authorizing>`). `AuthService.InitializeAsync()` é idempotente: a primeira chamada dispara a restauração e todas as outras esperam a mesma `Task`.
 - **`NavigationManager.BaseUri`** já traz a origem — é dele que o `PocketBaseClient` deriva a URL da API quando a config é relativa (`/`). Não precisa de JS interop pra isso.
 - ⚠️ **`Uri.TryCreate(x, UriKind.Absolute)` mente no browser-wasm.** O runtime WASM usa semântica de caminho Unix: `"/"` é um caminho absoluto, então `TryCreate("/", UriKind.Absolute)` devolve **true** e o `Uri` vira `file:///`. No desktop (Windows) a mesma chamada devolve **false** — por isso o bug só aparece no navegador. Com a config de produção (`PocketBase:Url = "/"`) o `BaseUrl` virava `file:` e toda requisição quebrava com `System.UriFormatException: net_uri_BadAuthority` ("The hostname could not be parsed") dentro do `HttpClient.PrepareRequestMessage`. **Regra: só trate como URL absoluta o que tem esquema `http`/`https` explícito** (helper `TryGetHttpUri` no `PocketBaseClient`); qualquer outra coisa é caminho relativo e combina com a origem do `NavigationManager.BaseUri`.
 - **`HttpClient` NÃO é registrado por default no Blazor WASM.** Sem registro no `Program.cs`, qualquer serviço que o injete quebra o app com `CannotResolveService, System.Net.Http.HttpClient` (aparece como "erro inesperado", não como erro de compilação). E **`AddHttpClient()` não existe aqui** — a extensão vive em `Microsoft.Extensions.Http`, que não é referenciado. Registre na mão: `AddScoped(_ => new HttpClient { BaseAddress = hostOrigin })`.
@@ -291,16 +291,25 @@ git push
 - **Card é `<article>`**, não `.card`. Os estilos `.card-header` / `.card-body` são do app (`css/app.css`), não do BeerCSS.
 - **Campo com label flutuante** precisa do `placeholder=" "` no input (o CSS usa `:placeholder-shown`).
 - **Ícones**: `<i>rocket_launch</i>` — o nome do ícone é o texto dentro da tag.
+- ⚠️ **`:has(>main)` transforma o pai do `<main>` num app-shell GRID** (colunas `left | main | right`, áreas nomeadas). Um `<nav>` **sem** a classe de área (`top`/`left`/`right`/`bottom`) cai por auto-placement na coluna `left` → **a barra top fica estreita e o conteúdo é empurrado pro lado**. O padrão dos dois apps é `<div class="app-shell">` + `<nav class="top">` + `grid-column: 1 / -1` no CSS do app.
+- ⚠️ **`nav:is(.left,.right,.top,.bottom) a:not(.button,.chip)`** põe todo `<a>` do `nav.top` em **coluna de 3.5rem** (`flex-direction: column`). Brand e chip de usuário viram pilha e estouram a barra. Sobrescreva com seletor de especificidade maior (`.app-shell > nav.top a.brand` / `a.user-chip`).
+- ⚠️ **`.button,button { box-sizing: content-box }`** — o `<button>` fica com `width: 100% + padding + borda` e **estoura o container**, enquanto o `<a class="button">` (border-box pela regra `*`) fica certo: mesma classe, duas larguras. O `css/app.css` corrige com `button, button.button { box-sizing: border-box; }` (dois seletores porque o `.button` do BeerCSS, (0,1,0), ganha do `button`, (0,0,1)).
+- ⚠️ **`.primary` / `.secondary` são utilitários com `!important`** — pintam o elemento inteiro. Para dar um "tom" a um card use uma classe do app com prefixo (`tone-primary`, `tone-accent`, `tone-neutral`).
+- ⚠️ **`.row` tem `white-space: nowrap`** — texto longo dentro de uma `.row` não quebra e é cortado dentro do card. Use uma classe própria (`.privacy-toggle`) ou `white-space: normal` no texto.
+- **`.wrap` é `display: block; white-space: normal`** — não é flex-wrap.
 
 ### Tema
 
 - **Cores flat, sem gradiente.** No máximo 1 primária + 1 accent, ambas sólidas. Os tokens Material 3 são sobrescritos em `apps/*/wwwroot/css/app.css` (bloco `:root, body.light` + bloco `body.dark` via `prefers-color-scheme`).
+- **A paleta é IDÊNTICA nos dois apps**: teal na primária (`#0f766e` / `#5eead4` no dark) e azul no accent (`#1d4ed8` / `#adc6ff`). Antes as duas apps trocavam os papéis e o site mudava de cor ao clicar em "Acessar App". Se for mudar a paleta, mude nos **dois** `app.css` e confira que os blocos de token ficaram iguais.
 
 ### PocketBase
 
-- **PB em container não hot-reloada hook** se o volume montar por cima: reinicie o processo.
+- **PB em container não hot-reloada hook** se o volume montar por cima: reinicie o processo (`docker compose restart pocketbase`).
 - **`pb_data/types.d.ts` é gerado pelo PB em runtime.** Não edite à mão — rode o PB e deixe ele regenerar (o arquivo é versionado no git).
 - **`pb_data/data.db` é o estado inteiro.** Versionar `pb_migrations/` reconstrói o schema; os **dados** só voltam via backup.
+- ⚠️ **O PB não manda `Cache-Control` nos arquivos estáticos** → o navegador aplica cache **heurístico** (10% da idade do `Last-Modified`) e continua servindo CSS/HTML antigos por horas depois de um deploy. Foi isso que escondeu uma correção de layout por completo. O hook `pocketbase/pb_hooks/main.pb.js` resolve com um middleware `routerUse`: `no-cache` para HTML/CSS/JS e `immutable` **só para os arquivos com fingerprint** (`Web.2i9vp585ak.wasm`). Cuidado: o manifesto de recursos do Blazor mora em `dotnet.js`, que **não** tem hash e muda a cada build — marcar o diretório `_framework` inteiro como `immutable` trava o browser no build antigo.
+- **Não existe `onServe` no JSVM do PB 0.40** — o hook global de requisição é o middleware `routerUse((e) => { ...; e.next(); })`. O header se escreve em `e.response.header().set(chave, valor)` (`header` é **função**, não propriedade). Funções auxiliares declaradas no topo do arquivo de hook **não são visíveis** dentro do callback do middleware (escopo do goja) — deixe a lógica inline.
 
 ---
 

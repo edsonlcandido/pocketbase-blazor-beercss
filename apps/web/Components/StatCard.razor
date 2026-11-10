@@ -1,4 +1,4 @@
-<article class="card stat-card @Tone">
+<article class="card stat-card @ToneClass">
     <div class="row middle-align no-space">
         <div class="stat-icon">
             <i>@Icon</i>
@@ -33,4 +33,8 @@
     /// <summary>Tom visual: <c>primary</c>, <c>accent</c> ou <c>neutral</c>.</summary>
     [Parameter]
     public string Tone { get; set; } = "primary";
+
+    // Prefixo "tone-" para não colidir com as utilitárias de cor do BeerCSS
+    // (.primary, .secondary) — elas pintam o elemento inteiro com !important.
+    private string ToneClass => $"tone-{Tone}";
 }

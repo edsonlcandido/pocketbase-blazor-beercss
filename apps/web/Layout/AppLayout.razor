@@ -1,4 +1,5 @@
 @inherits LayoutComponentBase
+@implements IDisposable
 @inject AuthService Auth
 @inject NavigationManager Navigation
 
@@ -32,6 +33,17 @@
 </div>
 
 @code {
+    protected override void OnInitialized()
+    {
+        // O chip do usuário e o botão Sair dependem do estado de auth: sem
+        // re-renderizar, a top bar ficaria desatualizada depois do login.
+        Auth.AuthStateChanged += OnAuthStateChanged;
+    }
+
+    private void OnAuthStateChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Auth.AuthStateChanged -= OnAuthStateChanged;
+
     private string DisplayName => string.IsNullOrWhiteSpace(Auth.User?.Name)
         ? Auth.User?.Email ?? "Usuário"
         : Auth.User!.Name;

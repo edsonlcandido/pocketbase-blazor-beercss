@@ -113,6 +113,41 @@ String(resp.body).length         // devolve nº de bytes, não de chars
 
 ---
 
+## Hook global de requisição (cache, headers) — `routerUse`
+
+**NÃO existe `onServe` no JSVM do PB 0.40.** Usar `onServe(...)` derruba o hook inteiro no boot:
+
+```
+failed to execute main.pb.js:
+  - ReferenceError: onServe is not defined at /app/pb.js:24:8(7)
+```
+
+O equivalente é o **middleware `routerUse`** — roda em todas as requisições e precisa chamar `e.next()` no final:
+
+```js
+routerUse((e) => {
+    try {
+        const path = (e.request && e.request.url) ? e.request.url.path : "";
+        if (path.indexOf("/api/") !== 0) {
+            e.response.header().set("Cache-Control", "no-cache");
+        }
+    } catch (err) {
+        console.log("não foi possível setar header:", err);
+    }
+    e.next();
+});
+```
+
+Pegadinhas:
+
+- **`e.response.header` é uma FUNÇÃO**: o header se escreve em `e.response.header().set(chave, valor)`. Se você escrever `e.response.header.set(...)` dá `TypeError`.
+- **Funções auxiliares declaradas no topo do arquivo NÃO são visíveis dentro do callback do middleware** (mesmo escopo do goja que já quebra `let`/`const` entre handlers). Deixa a lógica **inline** — foi o que resolveu um `ReferenceError: setHeader is not defined` que só aparecia em runtime.
+- **O `try/catch` não pode engolir o `e.next()`** — se o header falhar, a requisição morre sem resposta (400). Ponha o `e.next()` fora do `try`.
+- **Não registre um `routerAdd("GET", "/{path...}")`** para filtrar por path: a rota catch-all sombreia as estáticas e o site inteiro passa a responder 400. O middleware `routerUse` faz o mesmo trabalho sem registrar rota.
+- **`routerUse` só vale para quem carrega o hook depois** — o PB lê `pb_hooks/` no boot. Depois de editar, `docker compose restart pocketbase`.
+
+---
+
 ## Migração da API `Dao` do v0.22 (não escrever código antigo)
 
 No v0.23 a abstração `Dao` foi **removida** — os métodos subiram um nível, direto pro `$app`. Código do v0.22 só quebra quando a linha é executada (sem aviso no startup).

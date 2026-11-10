@@ -90,6 +90,45 @@ Carregado no `index.html`:
 
 O template define `.card`, `.card-header` e `.card-body` **no `css/app.css` do app** — são helpers do projeto, não do BeerCSS.
 
+### App-shell (`:has(>main)`) — a armadilha que derruba o layout
+
+O BeerCSS transforma **qualquer elemento que tenha um `<main>` direto** num grid de 3 colunas:
+
+```css
+:has(>main) {
+  display: grid;
+  grid-template-columns: auto minmax(0,1fr) auto;
+  grid-template-rows: auto auto minmax(0,1fr) auto auto;
+  grid-template-areas: "left top right" "left header right"
+                       "left main right" "left footer right" "left bottom right";
+  min-block-size: 100dvh;
+}
+nav.top  { grid-area: top }
+nav.left { grid-area: left }
+main     { grid-area: main; padding: .5rem; overflow: clip }
+footer   { grid-area: footer }
+```
+
+Ou seja: **o `<nav>` sem a classe de área (`top`/`left`/`right`/`bottom`) cai por auto-placement na coluna `left`** (que tem a largura do conteúdo) → a barra fica estreita, cortada, e o `<main>` é empurrado para o lado.
+
+O idioma correto (usado nos dois apps deste template):
+
+```html
+<div class="app-shell">
+    <nav class="top">...</nav>
+    <main>...</main>
+</div>
+```
+
+```css
+.app-shell > nav.top {
+    grid-column: 1 / -1;   /* ocupa todas as colunas */
+    justify-content: space-between;
+}
+```
+
+> `<nav>` **precisa** ter uma das classes de área. E o `<main>` não pode ser filho direto do `body`/raiz sem wrapper — cada `<main>` cria o grid no pai.
+
 ### Lista
 
 ```html
@@ -140,6 +179,24 @@ Tamanhos: `tiny` (1rem), `small` (1.25rem), `medium` (1.5rem, padrão), `large` 
 
 ---
 
+## Armadilhas do CSS do BeerCSS (leia antes de mexer no layout)
+
+Extraídas do `beer.min.css` — todas quebram layout silenciosamente.
+
+| Regra do BeerCSS | Efeito | Como escapar |
+|---|---|---|
+| `button { box-sizing: content-box }` (via `.button,button`) | `<button class="button large-width">` fica `100% + padding + borda` e **estoura o container**; `<a class="button">` (border-box via `*`) fica certo — mesma classe, larguras diferentes | `button { box-sizing: border-box; }` no `app.css` |
+| `.button,button { block-size: var(--_size); padding: 0 var(--_padding) }` | todo `<button>` ganha altura fixa de 2.5rem, independente do conteúdo | `block-size: auto` na classe do app |
+| `.primary { background-color: var(--primary) !important; color: var(--on-primary) !important }` | a classe utilitária `.primary` **pinta o elemento inteiro** — e não dá para sobrescrever sem `!important` | prefixe as classes do projeto (`tone-primary`, `tone-accent`) |
+| `.secondary { … !important }` | idem para `.secondary` | idem |
+| `nav:is(.left,.right,.top,.bottom) a:not(.button,.chip) { display:flex; flex-direction:column; inline-size:3.5rem; font-size:.8rem }` | todo `<a>` do `nav.top` vira **coluna de 3.5rem**: brand empilhado, chip de usuário quebrando o texto e estourando a barra | sobrescreva com seletor de especificidade maior: `.app-shell > nav.top a.brand { … }` |
+| `.wrap { display: block; white-space: normal }` | `.wrap` **não** é flex-wrap | use `flex-wrap: wrap` no CSS do app |
+| `:not(.grid,nav,.row)>:is(…,h1,…,p,…) { margin-block-start: 1rem }` | headings e parágrafos irmãos ganham margem de topo automática | `margin: 0` no container flex |
+
+> Especificidade: o seletor do BeerCSS `nav:is(.left,.right,.top,.bottom) a:not(.button,.chip)` vale (0,2,2). Um seletor do app como `.app-shell > nav.top a.brand` vale (0,3,2) e **vence** — sem precisar de `!important`.
+
+---
+
 ## Helpers
 
 | Classe | Efeito |
@@ -167,27 +224,29 @@ Os tokens Material 3 são sobrescritos em `apps/<app>/wwwroot/css/app.css`:
 ```css
 :root,
 body.light {
-    --primary: #1d4ed8;            /* azul — primária */
+    --primary: #0f766e;            /* teal — primária */
     --on-primary: #ffffff;
-    --primary-container: #dbe4ff;
-    --on-primary-container: #00174a;
+    --primary-container: #ccfbf1;
+    --on-primary-container: #00201d;
 
-    --secondary: #0f766e;          /* teal — accent */
+    --secondary: #1d4ed8;          /* azul — accent */
     --on-secondary: #ffffff;
-    --secondary-container: #ccfbf1;
-    --on-secondary-container: #00201d;
+    --secondary-container: #dbe4ff;
+    --on-secondary-container: #00174a;
 
-    --tertiary: #0f766e;           /* tertiary = accent (só 2 cores) */
+    --tertiary: #1d4ed8;           /* tertiary = accent (só 2 cores) */
     /* ... */
 }
 
 @media (prefers-color-scheme: dark) {
     :root {
-        --primary: #adc6ff;
+        --primary: #5eead4;
         /* ... */
     }
 }
 ```
+
+> **A paleta é IDÊNTICA nos dois apps** (`apps/landing` e `apps/web`): teal na primária, azul no accent. Antes as duas apps trocavam os papéis e o site mudava de cor ao clicar em "Acessar App". Se for mudar a paleta, mude nos **dois** arquivos e confira que os blocos de token ficaram byte-a-byte iguais.
 
 > O bloco `:root, body.light` (em vez de só `:root`) é necessário porque `body.light` tem **especificidade maior** — se ficasse só em `:root`, o valor original do BeerCSS venceria.
 
@@ -214,6 +273,9 @@ body.light {
 | `bg-gradient-to-r` (Tailwind) | cor sólida |
 | Carregar `beer.min.js` junto do `beer.min.css` | só o CSS |
 | Classe Tailwind (`flex`, `text-2xl`) | equivalente BeerCSS (`row`, `h5`) |
+| `<nav>` sem `top`/`left`/`right`/`bottom` dentro de um app-shell | sempre com a classe de área + `grid-column: 1 / -1` |
+| Classe utilitária `.primary`/`.secondary` para dar "tom" a um card | classe do projeto com prefixo (`tone-primary`) |
+| Confiar que `.wrap` faz flex-wrap | `flex-wrap: wrap` no CSS do app |
 
 ---
 
@@ -224,7 +286,10 @@ body.light {
 - [ ] `placeholder=" "` em todo campo com label flutuante
 - [ ] Card como `<article>`
 - [ ] Nenhum gradiente no CSS
-- [ ] Tema flat: 1 primária + 1 accent
+- [ ] Tema flat: 1 primária + 1 accent, **idêntico nos dois apps**
+- [ ] `<nav>` com classe de área (`top`) dentro do app-shell
+- [ ] `button { box-sizing: border-box }` no `app.css` dos dois apps
+- [ ] Nenhuma classe utilitária de cor (`.primary`, `.secondary`) em elemento do app
 
 ## Skills relacionadas
 

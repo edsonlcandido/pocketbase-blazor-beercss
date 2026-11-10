@@ -18,8 +18,15 @@ public sealed class PocketBaseAuthenticationStateProvider : AuthenticationStateP
         _auth.AuthStateChanged += OnAuthStateChanged;
     }
 
-    public override Task<AuthenticationState> GetAuthenticationStateAsync()
+    public override async Task<AuthenticationState> GetAuthenticationStateAsync()
     {
+        // Aguarda a restauração da sessão ANTES de reportar o estado.
+        // O AuthorizeRouteView usa este await para decidir entre renderizar a
+        // rota, mostrar o <Authorizing> ou redirecionar para o login — sem a
+        // espera, o guard avalia "anônimo" no primeiro render e joga a rota
+        // protegida para /login mesmo com o token válido.
+        await _auth.InitializeAsync();
+
         var user = _auth.User;
 
         var principal = user is null
@@ -33,7 +40,7 @@ public sealed class PocketBaseAuthenticationStateProvider : AuthenticationStateP
                 },
                 authenticationType: "pocketbase"));
 
-        return Task.FromResult(new AuthenticationState(principal));
+        return new AuthenticationState(principal);
     }
 
     private void OnAuthStateChanged() => NotifyAuthenticationStateChanged(GetAuthenticationStateAsync());

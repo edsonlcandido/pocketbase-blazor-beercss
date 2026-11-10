@@ -33,33 +33,52 @@ public sealed class AuthService
     /// <summary>Disparado sempre que o usuário loga, desloga ou os dados mudam.</summary>
     public event Action? AuthStateChanged;
 
+    private Task? _initialization;
+
     /// <summary>
     /// Restaura a sessão a partir do token salvo no navegador.
     /// Equivale ao <c>verifyAuth()</c> da store Pinia.
+    ///
+    /// Idempotente e segura para chamadas concorrentes: a primeira chamada
+    /// dispara a restauração e todas as outras esperam a MESMA Task. Isso é o
+    /// que permite ao <see cref="PocketBaseAuthenticationStateProvider"/>
+    /// segurar o <c>AuthorizeRouteView</c> enquanto o token é lido — sem isso o
+    /// guard avalia "anônimo" e joga a rota protegida para /login mesmo com a
+    /// sessão válida (acontecia em todo F5).
     /// </summary>
-    public async Task InitializeAsync()
+    public Task InitializeAsync() => _initialization ??= RestoreSessionAsync();
+
+    private async Task RestoreSessionAsync()
     {
-        var token = await _storage.GetAsync(TokenStorageKey);
-        if (string.IsNullOrWhiteSpace(token))
-        {
-            return;
-        }
-
-        _pb.SetToken(token);
-
         try
         {
-            User = await _pb.AuthRefreshAsync();
-            await _storage.SetAsync(TokenStorageKey, _pb.Token ?? token);
-            Notify();
+            var token = await _storage.GetAsync(TokenStorageKey);
+            if (string.IsNullOrWhiteSpace(token))
+            {
+                return;
+            }
+
+            _pb.SetToken(token);
+
+            try
+            {
+                User = await _pb.AuthRefreshAsync();
+                await _storage.SetAsync(TokenStorageKey, _pb.Token ?? token);
+                Notify();
+            }
+            catch (Exception exception)
+            {
+                // Token inválido/expirado, PocketBase fora do ar ou URL mal configurada:
+                // limpa a sessão e segue para o login. O boot do app NÃO pode quebrar
+                // por causa de uma sessão salva no navegador.
+                Console.WriteLine($"[auth] falha ao restaurar a sessão: {exception.Message}");
+                await LogoutAsync();
+            }
         }
         catch (Exception exception)
         {
-            // Token inválido/expirado, PocketBase fora do ar ou URL mal configurada:
-            // limpa a sessão e segue para o login. O boot do app NÃO pode quebrar
-            // por causa de uma sessão salva no navegador.
-            Console.WriteLine($"[auth] falha ao restaurar a sessão: {exception.Message}");
-            await LogoutAsync();
+            // Nem a leitura do localStorage pode derrubar o boot do app.
+            Console.WriteLine($"[auth] falha ao inicializar a sessão: {exception.Message}");
         }
     }
 

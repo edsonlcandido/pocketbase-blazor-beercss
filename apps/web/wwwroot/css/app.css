@@ -4,24 +4,28 @@
    Regra da casa: no máximo 1 primária + 1 accent, ambas SÓLIDAS.
    Sem gradiente em lugar nenhum — os tokens Material 3 do BeerCSS são
    sobrescritos aqui com valores chapados.
+
+   A paleta é IDÊNTICA à da landing page (mesmos valores, mesmos papéis):
+   teal na primária, azul no accent. Antes as duas apps trocavam os papéis
+   e o site mudava de cor ao clicar em "Acessar App".
    =========================================================================== */
 
 :root,
 body.light {
-    --primary: #1d4ed8;
+    --primary: #0f766e;
     --on-primary: #ffffff;
-    --primary-container: #dbe4ff;
-    --on-primary-container: #00174a;
+    --primary-container: #ccfbf1;
+    --on-primary-container: #00201d;
 
-    --secondary: #0f766e;
+    --secondary: #1d4ed8;
     --on-secondary: #ffffff;
-    --secondary-container: #ccfbf1;
-    --on-secondary-container: #00201d;
+    --secondary-container: #dbe4ff;
+    --on-secondary-container: #00174a;
 
-    --tertiary: #0f766e;
+    --tertiary: #1d4ed8;
     --on-tertiary: #ffffff;
-    --tertiary-container: #ccfbf1;
-    --on-tertiary-container: #00201d;
+    --tertiary-container: #dbe4ff;
+    --on-tertiary-container: #00174a;
 
     --error: #b3261e;
     --on-error: #ffffff;
@@ -38,7 +42,7 @@ body.light {
     --outline-variant: #c4c6d0;
     --inverse-surface: #2f3136;
     --inverse-on-surface: #f1f1f4;
-    --inverse-primary: #adc6ff;
+    --inverse-primary: #5eead4;
     --surface-dim: #d7dae4;
     --surface-bright: #f6f7fb;
     --surface-container-lowest: #ffffff;
@@ -50,20 +54,20 @@ body.light {
 
 @media (prefers-color-scheme: dark) {
     :root {
-        --primary: #adc6ff;
-        --on-primary: #00287a;
-        --primary-container: #0043a5;
-        --on-primary-container: #dbe4ff;
+        --primary: #5eead4;
+        --on-primary: #003732;
+        --primary-container: #005048;
+        --on-primary-container: #ccfbf1;
 
-        --secondary: #5eead4;
-        --on-secondary: #003732;
-        --secondary-container: #005048;
-        --on-secondary-container: #ccfbf1;
+        --secondary: #adc6ff;
+        --on-secondary: #00287a;
+        --secondary-container: #0043a5;
+        --on-secondary-container: #dbe4ff;
 
-        --tertiary: #5eead4;
-        --on-tertiary: #003732;
-        --tertiary-container: #005048;
-        --on-tertiary-container: #ccfbf1;
+        --tertiary: #adc6ff;
+        --on-tertiary: #00287a;
+        --tertiary-container: #0043a5;
+        --on-tertiary-container: #dbe4ff;
 
         --error: #ffb4ab;
         --on-error: #690005;
@@ -80,7 +84,7 @@ body.light {
         --outline-variant: #44474f;
         --inverse-surface: #e3e2e6;
         --inverse-on-surface: #2f3136;
-        --inverse-primary: #1d4ed8;
+        --inverse-primary: #0f766e;
         --surface-dim: #131417;
         --surface-bright: #393a3f;
         --surface-container-lowest: #0e0f11;
@@ -95,6 +99,21 @@ body.light {
    Shell
    =========================================================================== */
 
+/*
+ * O BeerCSS força "button { box-sizing: content-box }" (regra ".button,button").
+ * Com isso, um <button class="button large-width"> fica com largura
+ * 100% + padding + borda e ESTOURA o container, enquanto o <a class="button">
+ * (border-box pela regra "*") fica correto — mesma classe, duas larguras.
+ * O mesmo vale para altura: o button ganha a altura fixa do .button.
+ *
+ * Dois seletores porque o ".button" do BeerCSS (0,1,0) ganha do "button"
+ * (0,0,1) — só o "button.button" (0,1,1) vence.
+ */
+button,
+button.button {
+    box-sizing: border-box;
+}
+
 .app-shell {
     min-block-size: 100dvh;
 }
@@ -108,6 +127,23 @@ body.light {
     border-block-end: 0.0625rem solid var(--outline-variant);
 }
 
+/*
+ * O BeerCSS aplica em todo <a> dentro de nav.top:
+ *   display:flex; flex-direction:column; inline-size:3.5rem; font-size:.8rem
+ * (regra "nav:is(.left,.right,.top,.bottom) a:not(.button,.chip)").
+ * Sem esta sobrescrita, o brand vira uma coluna estreita e o ícone
+ * empilha em cima do texto.
+ */
+.app-shell > nav.top a.brand {
+    display: inline-flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.5rem;
+    inline-size: auto;
+    font-size: 1.125rem;
+    line-height: normal;
+}
+
 .brand {
     display: inline-flex;
     align-items: center;
@@ -119,6 +155,21 @@ body.light {
 
 .brand i {
     color: var(--primary);
+}
+
+/*
+ * O chip do usuário é um <a> dentro de nav.top e cai na mesma regra do
+ * BeerCSS ("nav:is(...) a:not(.button,.chip)") — sem esta sobrescrita ele
+ * vira coluna de 3.5rem, o nome quebra em duas linhas e o avatar estoura
+ * a barra.
+ */
+.app-shell > nav.top a.user-chip {
+    display: inline-flex;
+    flex-direction: row;
+    align-items: center;
+    inline-size: auto;
+    font-size: 0.875rem;
+    white-space: nowrap;
 }
 
 .user-chip {
@@ -157,9 +208,14 @@ body.light {
    Cards
    =========================================================================== */
 
+/* Mesma receita de card nos dois apps: superfície + borda, sem sombra. */
 .card {
     padding: 0;
     overflow: hidden;
+    background-color: var(--surface-container-low);
+    border: 0.0625rem solid var(--outline-variant);
+    border-radius: 0.75rem;
+    box-shadow: none;
 }
 
 .card-header {
@@ -180,8 +236,15 @@ body.light {
    Dashboard
    =========================================================================== */
 
+/*
+ * Tom do card: classes "tone-*" (e não "primary"/"accent"/"neutral") porque
+ * o BeerCSS tem ".primary { background-color: var(--primary) !important }" —
+ * com a classe pura, o card inteiro virava azul e o rótulo (que usa
+ * --on-surface-variant) ficava ilegível sobre ele. O tom só pinta o ícone.
+ */
 .stat-card {
     block-size: 100%;
+    padding: 1.25rem;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
@@ -199,12 +262,12 @@ body.light {
     color: var(--on-primary-container);
 }
 
-.stat-card.accent .stat-icon {
+.stat-card.tone-accent .stat-icon {
     background-color: var(--secondary-container);
     color: var(--on-secondary-container);
 }
 
-.stat-card.neutral .stat-icon {
+.stat-card.tone-neutral .stat-icon {
     background-color: var(--surface-container-high);
     color: var(--on-surface-variant);
 }
@@ -222,11 +285,23 @@ body.light {
 .quick-action {
     display: flex;
     align-items: center;
+    justify-content: flex-start;
     gap: 1rem;
     inline-size: 100%;
+    /*
+     * O <button> chega aqui com box-sizing:content-box e block-size fixo do
+     * BeerCSS (.button,button): ficaria 34px mais largo que a track do grid
+     * (estourando o card) e 4px mais baixo que o <a> equivalente.
+     */
+    box-sizing: border-box;
+    /* 100% (e não auto) para todos os botões da linha ficarem com a mesma
+     * altura — o texto mais longo quebra em 2 linhas. */
+    block-size: 100%;
     padding: 1rem;
     text-align: start;
-    background-color: var(--surface-container-lowest);
+    font-size: 0.875rem;
+    font-weight: 500;
+    background-color: var(--surface-container-low);
     border: 0.0625rem solid var(--outline-variant);
     border-radius: 0.75rem;
     color: var(--on-surface);
@@ -307,6 +382,30 @@ body.light {
 .account-value {
     font-weight: 600;
     overflow-wrap: anywhere;
+    /* o .row do BeerCSS é white-space: nowrap — sem isso a descrição
+     * "Desligado, seu e-mail fica visível apenas para você." não quebra
+     * e é cortada dentro do card. */
+    white-space: normal;
+}
+
+/*
+ * Linha da privacidade: o .row do BeerCSS tem white-space: nowrap, que
+ * impede a descrição de quebrar em linhas e a corta dentro do card.
+ */
+.privacy-toggle {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    white-space: normal;
+    cursor: pointer;
+}
+
+.privacy-toggle strong {
+    display: block;
+}
+
+.privacy-toggle small {
+    display: block;
 }
 
 .icon-button {
@@ -348,6 +447,15 @@ body.light {
 /* ===========================================================================
    Utilidades
    =========================================================================== */
+
+/*
+ * ".accent" não existe no BeerCSS (só existem .primary e .secondary, ambos
+ * com !important). Esta é a classe do app e usa o token secundário.
+ */
+.button.accent {
+    background-color: var(--secondary);
+    color: var(--on-secondary);
+}
 
 .muted {
     color: var(--on-surface-variant);

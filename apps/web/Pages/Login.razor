@@ -88,8 +88,12 @@
     private bool _loading;
     private string _error = string.Empty;
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
+        // Espera a sessão ser restaurada antes de decidir: sem isso, um F5
+        // na página de login mostra o formulário mesmo com o usuário logado.
+        await Auth.InitializeAsync();
+
         if (Auth.IsAuthenticated)
         {
             Navigation.NavigateTo("dashboard");
